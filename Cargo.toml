@@ -1,0 +1,12 @@
+workspace = { members = ["times"] }
+[package]
+name = "timesheet"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+times = { path = "times" }
+structopt = "0.3.26"
+fs-err = "2.11"
