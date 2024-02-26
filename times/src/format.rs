@@ -6,26 +6,37 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Format error: {0}")]
-    Fmt(#[from] fmt::Error),
-    #[error("Time in line {0} is never terminated")]
+    #[error("Time span in line {0} is never terminated")]
     NotTerminated(usize),
 }
 
-pub struct Output<'a>(pub &'a [Day]);
+pub struct Output<'a>(&'a [Day]);
 
-pub trait Format {
-    fn format(&self, f: &mut Formatter<'_>) -> Result<(), Error>;
+impl<'a> Output<'a> {
+    pub fn new(days: &'a [Day]) -> Result<Self, Error> {
+        for day in days {
+            if let Some(last) = day.entries.last() {
+                if !matches!(last.value.topic, Topic::Break) {
+                    return Err(Error::NotTerminated(last.line));
+                }
+            }
+        }
+        Ok(Self(days))
+    }
+}
+
+trait Format {
+    fn format(&self, f: &mut Formatter<'_>) -> fmt::Result;
 }
 
 impl<'a> Display for Output<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.0.format(f).map_err(|_| fmt::Error)
+        self.0.format(f)
     }
 }
 
 impl<'a> Format for &'a [Day] {
-    fn format(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+    fn format(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut first = true;
         for day in *self {
             if first {
@@ -41,7 +52,7 @@ impl<'a> Format for &'a [Day] {
 }
 
 impl<'a> Format for &'a Day {
-    fn format(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+    fn format(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "* {}", self.day.value)?;
         self.entries.as_slice().format(f)?;
         Ok(())
@@ -49,24 +60,26 @@ impl<'a> Format for &'a Day {
 }
 
 impl<'a> Format for &'a [Positioned<Entry>] {
-    fn format(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        if let Some(last) = self.last() {
-            if !matches!(last.value.topic, Topic::Break) {
-                return Err(Error::NotTerminated(last.line));
-            }
-        }
+    fn format(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for (entry, next) in self.iter().map(|e| &e.value).tuple_windows() {
-            if let Topic::Project {
-                identifier,
-                comment,
-            } = &entry.topic
-            {
-                write!(f, "{} - {} {}", entry.time, next.time, identifier)?;
-                if let Some(comment) = comment {
-                    write!(f, " {comment}")?;
-                }
-                writeln!(f)?;
+            (entry, next).format(f)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> Format for (&'a Entry, &'a Entry) {
+    fn format(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if let Topic::Project {
+            identifier,
+            comment,
+        } = &self.0.topic
+        {
+            write!(f, "{} - {} {}", self.0.time, self.1.time, identifier)?;
+            if let Some(comment) = comment {
+                write!(f, " {comment}")?;
             }
+            writeln!(f)?;
         }
         Ok(())
     }

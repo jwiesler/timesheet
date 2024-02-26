@@ -240,6 +240,7 @@ version = "0.1.0"
 dependencies = [
  "fs-err",
  "structopt",
+ "thiserror",
  "times",
 ]
 

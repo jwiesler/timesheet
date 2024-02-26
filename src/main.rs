@@ -4,10 +4,11 @@ use std::io::{BufReader, BufWriter, Write};
 use std::process::ExitCode;
 
 use times::format::Output;
+use times::parse::parse;
 
 use fs_err::{File, OpenOptions};
 use structopt::StructOpt;
-use times::parse::parse;
+use thiserror::Error;
 
 #[derive(Debug, StructOpt)]
 struct Command {
@@ -20,23 +21,39 @@ struct Command {
     out: String,
 }
 
-fn main() -> ExitCode {
-    let Command { path, out } = Command::from_args();
+#[derive(Error, Debug)]
+enum Error {
+    #[error("Failed to read input file: {0}")]
+    InputFile(std::io::Error),
+    #[error("Failed to write to output file: {0}")]
+    OutputFile(std::io::Error),
+    #[error("Failed to parse input: {0}")]
+    Parse(#[from] times::parse::Error),
+    #[error("Invalid times: {0}")]
+    Validate(#[from] times::format::Error),
+}
 
-    let file = File::open(path).expect("Failed to read input file");
-    let days = match parse(&mut BufReader::new(file)) {
-        Ok(days) => days,
-        Err(e) => {
-            eprintln!("{e}");
-            return ExitCode::FAILURE;
-        }
-    };
+fn run(path: String, out: String) -> Result<(), Error> {
+    let file = File::open(path).map_err(Error::InputFile)?;
+    let days = parse(&mut BufReader::new(file))?;
 
     let out = OpenOptions::new()
         .write(true)
         .create(true)
         .open(out)
-        .expect("open output file");
-    write!(&mut BufWriter::new(out), "{}", Output(&days)).unwrap();
-    ExitCode::SUCCESS
+        .map_err(Error::OutputFile)?;
+    let output = Output::new(&days)?;
+    write!(&mut BufWriter::new(out), "{output}").expect("format output");
+    Ok(())
+}
+
+fn main() -> ExitCode {
+    let Command { path, out } = Command::from_args();
+    match run(path, out) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::FAILURE
+        }
+    }
 }
