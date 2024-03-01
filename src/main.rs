@@ -19,6 +19,10 @@ struct Command {
     /// Input path timesheet, defaults to `timesheet.txt`
     #[structopt(default_value = "timesheet.out.txt")]
     out: String,
+
+    /// Whether to only check the input
+    #[structopt(long)]
+    check: bool,
 }
 
 #[derive(Error, Debug)]
@@ -33,7 +37,7 @@ enum Error {
     Validate(#[from] times::verify::Error),
 }
 
-fn run(path: String, out: String) -> Result<(), Error> {
+fn run(Command { path, out, check }: Command) -> Result<(), Error> {
     let file = File::open(path).map_err(Error::InputFile)?;
     let days = parse(&mut BufReader::new(file))?;
     let output = Output::new(&days)?;
@@ -50,8 +54,8 @@ fn run(path: String, out: String) -> Result<(), Error> {
 }
 
 fn main() -> ExitCode {
-    let Command { path, out } = Command::from_args();
-    match run(path, out) {
+    let command = Command::from_args();
+    match run(command) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("{e}");
