@@ -30,20 +30,22 @@ enum Error {
     #[error("Failed to parse input: {0}")]
     Parse(#[from] times::parse::Error),
     #[error("Invalid times: {0}")]
-    Validate(#[from] times::format::Error),
+    Validate(#[from] times::verify::Error),
 }
 
 fn run(path: String, out: String) -> Result<(), Error> {
     let file = File::open(path).map_err(Error::InputFile)?;
     let days = parse(&mut BufReader::new(file))?;
-
-    let out = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(out)
-        .map_err(Error::OutputFile)?;
     let output = Output::new(&days)?;
-    write!(&mut BufWriter::new(out), "{output}").expect("format output");
+
+    if !check {
+        let out = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(out)
+            .map_err(Error::OutputFile)?;
+        write!(&mut BufWriter::new(out), "{output}").expect("format output");
+    }
     Ok(())
 }
 

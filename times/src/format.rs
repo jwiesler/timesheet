@@ -1,26 +1,16 @@
+use crate::verify::{verify, Error};
 use crate::{Day, Entry, Positioned, Time, Topic};
-use itertools::Itertools;
+
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("Time span in line {0} is never terminated")]
-    NotTerminated(usize),
-}
+use itertools::Itertools;
 
 pub struct Output<'a>(&'a [Day]);
 
 impl<'a> Output<'a> {
     pub fn new(days: &'a [Day]) -> Result<Self, Error> {
-        for day in days {
-            if let Some(last) = day.entries.last() {
-                if !matches!(last.value.topic, Topic::Break) {
-                    return Err(Error::NotTerminated(last.line));
-                }
-            }
-        }
+        verify(days)?;
         Ok(Self(days))
     }
 }

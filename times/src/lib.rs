@@ -3,6 +3,7 @@
 
 pub mod format;
 pub mod parse;
+pub mod verify;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Time {
