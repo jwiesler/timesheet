@@ -126,9 +126,9 @@ mod test {
 
     #[test]
     fn test_parse_time() {
-        assert_eq!("10:02".parse(), Ok(Time::new(10, 2)));
-        assert_eq!("10:20".parse(), Ok(Time::new(10, 20)));
-        assert_eq!("00:20".parse(), Ok(Time::new(0, 20)));
+        assert_eq!("10:02".parse(), Ok(Time::new(10, 2).unwrap()));
+        assert_eq!("10:20".parse(), Ok(Time::new(10, 20).unwrap()));
+        assert_eq!("00:20".parse(), Ok(Time::new(0, 20).unwrap()));
         assert_eq!("10:2".parse::<Time>(), Err(TimeError));
         assert_eq!("1:20".parse::<Time>(), Err(TimeError));
         assert_eq!("10".parse::<Time>(), Err(TimeError));
@@ -168,14 +168,14 @@ mod test {
         assert_eq!(
             "10:02".parse(),
             Ok(Entry {
-                time: Time::new(10, 2),
+                time: Time::new(10, 2).unwrap(),
                 topic: Topic::Break,
             })
         );
         assert_eq!(
             "10:02 Test".parse(),
             Ok(Entry {
-                time: Time::new(10, 2),
+                time: Time::new(10, 2).unwrap(),
                 topic: Topic::Project {
                     identifier: "Test".to_owned(),
                     comment: None,
@@ -185,7 +185,7 @@ mod test {
         assert_eq!(
             "10:02 Test bla bla bla".parse(),
             Ok(Entry {
-                time: Time::new(10, 2),
+                time: Time::new(10, 2).unwrap(),
                 topic: Topic::Project {
                     identifier: "Test".to_owned(),
                     comment: Some("bla bla bla".to_owned()),

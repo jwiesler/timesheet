@@ -45,6 +45,23 @@ impl<'a> Format for &'a Day {
     fn format(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "* {}", self.day.value)?;
         self.entries.as_slice().format(f)?;
+
+        let minutes: usize = self
+            .entries
+            .iter()
+            .map(|e| &e.value)
+            .tuple_windows()
+            .map(|(entry, next)| {
+                if let Topic::Project { .. } = &entry.topic {
+                    next.time.elapsed_minutes(entry.time).unwrap()
+                } else {
+                    0
+                }
+            })
+            .sum();
+        let hours = minutes / 60;
+        let minutes = minutes % 60;
+        writeln!(f, "# Total: {hours:0>2}:{minutes:0>2}")?;
         Ok(())
     }
 }
