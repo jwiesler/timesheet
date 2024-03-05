@@ -17,6 +17,11 @@ impl Minutes {
     pub fn hours_minutes(self) -> (usize, usize) {
         (self.0 / 60, self.0 % 60)
     }
+
+    #[must_use]
+    pub fn into_inner(self) -> usize {
+        self.0
+    }
 }
 
 impl Add<Minutes> for Minutes {
@@ -39,7 +44,7 @@ impl From<usize> for Minutes {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, Copy, Clone)]
 pub struct Time {
     pub hour: u8,
     pub minute: u8,
@@ -90,7 +95,7 @@ pub struct Day {
     pub entries: Vec<Positioned<Entry>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct Positioned<T> {
     pub line: usize,
     pub value: T,
@@ -112,19 +117,19 @@ mod test {
             Time::new(12, 00)
                 .unwrap()
                 .elapsed(Time::new(11, 00).unwrap()),
-            Some(60)
+            Some(60.into())
         );
         assert_eq!(
             Time::new(12, 10)
                 .unwrap()
                 .elapsed(Time::new(11, 5).unwrap()),
-            Some(65)
+            Some(65.into())
         );
         assert_eq!(
             Time::new(12, 5)
                 .unwrap()
                 .elapsed(Time::new(11, 10).unwrap()),
-            Some(55)
+            Some(55.into())
         );
         assert_eq!(
             Time::new(11, 00)

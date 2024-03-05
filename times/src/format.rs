@@ -1,5 +1,5 @@
 use crate::convert::{Day, Entry};
-use crate::{Minutes, Positioned, Time};
+use crate::{Positioned, Time};
 
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -43,7 +43,8 @@ impl<'a> Format for &'a Day {
     fn format(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "* {}", self.day.value)?;
         self.entries.as_slice().format(f)?;
-        let minutes: Minutes = self.entries.iter().map(|e| e.value.duration).sum();
+        let time = self.accumulated_time();
+        let minutes = time.billable_travel_time() + time.work_time();
         let (hours, minutes) = minutes.hours_minutes();
         writeln!(f, "# Total: {hours:0>2}:{minutes:0>2}")?;
         Ok(())

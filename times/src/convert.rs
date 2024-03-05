@@ -12,7 +12,8 @@ pub enum Error {
     UnorderedEntries(usize),
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
+#[cfg_attr(test, derive(Default, Eq, PartialEq))]
 pub struct Entry {
     pub start: Positioned<Time>,
     pub end: Positioned<Time>,
@@ -74,10 +75,123 @@ impl TryFrom<crate::Day> for Day {
     }
 }
 
-impl Day {
+#[derive(Default)]
+#[cfg_attr(test, derive(Debug, Eq, PartialEq))]
+pub struct AccumulatedTime {
+    travel: Minutes,
+    work: Minutes,
+}
+
+fn billable_travel_time(travel: Minutes) -> Minutes {
+    let minutes = travel.into_inner();
+    if let Some(m) = minutes.checked_sub(45) {
+        Minutes::from(((m * 3) / 4).min(6 * 60))
+    } else {
+        Minutes::default()
+    }
+}
+
+impl AccumulatedTime {
+    #[must_use]
+    pub fn billable_travel_time(&self) -> Minutes {
+        billable_travel_time(self.travel)
+    }
+
     #[must_use]
     pub fn work_time(&self) -> Minutes {
-        self.entries.iter().map(|entry| entry.value.duration).sum()
+        self.work
+    }
+}
+
+impl Day {
+    #[must_use]
+    pub fn accumulated_time(&self) -> AccumulatedTime {
+        self.entries
+            .iter()
+            .fold(AccumulatedTime::default(), |acc, entry| {
+                let AccumulatedTime { travel, work } = acc;
+                let duration = entry.value.duration;
+                if &entry.value.identifier == "TNGFa" {
+                    AccumulatedTime {
+                        travel: travel + duration,
+                        work,
+                    }
+                } else {
+                    AccumulatedTime {
+                        work: work + duration,
+                        travel,
+                    }
+                }
+            })
         // Reisezeit min(max(0, T[Reisezeit] – 45min) × 75%, 6h)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::convert::{billable_travel_time, AccumulatedTime, Day, Entry};
+    use crate::{Minutes, Positioned};
+
+    #[test]
+    fn test_travel_time_calc() {
+        assert_eq!(billable_travel_time(Minutes::from(20)), Minutes::default());
+        assert_eq!(
+            billable_travel_time(Minutes::from(4 * 60 + 45)),
+            Minutes::from(3 * 60)
+        );
+        assert_eq!(
+            billable_travel_time(Minutes::from(9 * 60)),
+            Minutes::from(6 * 60)
+        );
+    }
+
+    #[test]
+    fn test_accumulated_time() {
+        let day = Day {
+            comments: vec![],
+            day: Positioned::new(0, "A".into()),
+            entries: vec![
+                Positioned::new(
+                    0,
+                    Entry {
+                        duration: 60.into(),
+                        identifier: "TNG".to_string(),
+                        ..Default::default()
+                    },
+                ),
+                Positioned::new(
+                    0,
+                    Entry {
+                        duration: 30.into(),
+                        identifier: "TNGFa".to_string(),
+                        ..Default::default()
+                    },
+                ),
+                Positioned::new(
+                    0,
+                    Entry {
+                        duration: 60.into(),
+                        identifier: "TNG".to_string(),
+                        ..Default::default()
+                    },
+                ),
+                Positioned::new(
+                    0,
+                    Entry {
+                        duration: 30.into(),
+                        identifier: "TNGFa".to_string(),
+                        ..Default::default()
+                    },
+                ),
+            ],
+        };
+
+        assert_eq!(
+            day.accumulated_time(),
+            AccumulatedTime {
+                travel: 60.into(),
+                work: 120.into()
+            }
+        )
     }
 }
