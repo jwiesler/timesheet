@@ -28,13 +28,17 @@ enum Error {
     #[error("Failed to parse input: {0}")]
     Parse(#[from] times::parse::Error),
     #[error("Invalid times: {0}")]
-    Validate(#[from] times::verify::Error),
+    Validate(#[from] times::convert::Error),
 }
 
 fn run(Command { path, check }: Command) -> Result<(), Error> {
     let file = File::open(path).map_err(Error::InputFile)?;
     let days = parse(&mut BufReader::new(file))?;
-    let output = Output::new(&days)?;
+    let days = days
+        .into_iter()
+        .map(times::convert::Day::try_from)
+        .collect::<Result<Vec<_>, _>>()?;
+    let output = Output::new(&days);
 
     if !check {
         write!(&mut stdout(), "{output}").expect("format output");

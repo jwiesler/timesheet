@@ -2,9 +2,42 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
+use std::iter::Sum;
+use std::ops::Add;
+
+pub mod convert;
 pub mod format;
 pub mod parse;
-pub mod verify;
+
+#[derive(Debug, Default, Eq, PartialEq, Copy, Clone)]
+pub struct Minutes(usize);
+
+impl Minutes {
+    #[must_use]
+    pub fn hours_minutes(self) -> (usize, usize) {
+        (self.0 / 60, self.0 % 60)
+    }
+}
+
+impl Add<Minutes> for Minutes {
+    type Output = Minutes;
+
+    fn add(self, rhs: Minutes) -> Self::Output {
+        (self.0 + rhs.0).into()
+    }
+}
+
+impl Sum<Minutes> for Minutes {
+    fn sum<I: Iterator<Item = Minutes>>(iter: I) -> Self {
+        iter.fold(Minutes::default(), |a, b| a + b)
+    }
+}
+
+impl From<usize> for Minutes {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct Time {
@@ -23,7 +56,7 @@ impl Time {
     }
 
     #[must_use]
-    pub fn elapsed_minutes(self, o: Time) -> Option<usize> {
+    pub fn elapsed(self, o: Time) -> Option<Minutes> {
         let hours = self.hour.checked_sub(o.hour)?;
         let hour_minutes = usize::from(hours) * 60;
         let minutes = if self.minute >= o.minute {
@@ -31,7 +64,7 @@ impl Time {
         } else {
             hour_minutes.checked_sub(usize::from(o.minute.checked_sub(self.minute).unwrap()))?
         };
-        Some(minutes)
+        Some(minutes.into())
     }
 }
 
@@ -74,35 +107,35 @@ mod test {
     use crate::Time;
 
     #[test]
-    fn test_elapsed_minutes() {
+    fn test_elapsed() {
         assert_eq!(
             Time::new(12, 00)
                 .unwrap()
-                .elapsed_minutes(Time::new(11, 00).unwrap()),
+                .elapsed(Time::new(11, 00).unwrap()),
             Some(60)
         );
         assert_eq!(
             Time::new(12, 10)
                 .unwrap()
-                .elapsed_minutes(Time::new(11, 5).unwrap()),
+                .elapsed(Time::new(11, 5).unwrap()),
             Some(65)
         );
         assert_eq!(
             Time::new(12, 5)
                 .unwrap()
-                .elapsed_minutes(Time::new(11, 10).unwrap()),
+                .elapsed(Time::new(11, 10).unwrap()),
             Some(55)
         );
         assert_eq!(
             Time::new(11, 00)
                 .unwrap()
-                .elapsed_minutes(Time::new(12, 00).unwrap()),
+                .elapsed(Time::new(12, 00).unwrap()),
             None
         );
         assert_eq!(
             Time::new(12, 00)
                 .unwrap()
-                .elapsed_minutes(Time::new(12, 01).unwrap()),
+                .elapsed(Time::new(12, 01).unwrap()),
             None
         );
     }

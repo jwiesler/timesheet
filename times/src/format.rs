@@ -1,17 +1,15 @@
-use crate::verify::{verify, Error};
-use crate::{Day, Entry, Positioned, Time, Topic};
+use crate::convert::{Day, Entry};
+use crate::{Minutes, Positioned, Time};
 
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
-use itertools::Itertools;
-
 pub struct Output<'a>(&'a [Day]);
 
 impl<'a> Output<'a> {
-    pub fn new(days: &'a [Day]) -> Result<Self, Error> {
-        verify(days)?;
-        Ok(Self(days))
+    #[must_use]
+    pub fn new(days: &'a [Day]) -> Self {
+        Self(days)
     }
 }
 
@@ -45,49 +43,33 @@ impl<'a> Format for &'a Day {
     fn format(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "* {}", self.day.value)?;
         self.entries.as_slice().format(f)?;
-
-        let minutes: usize = self
-            .entries
-            .iter()
-            .map(|e| &e.value)
-            .tuple_windows()
-            .map(|(entry, next)| {
-                if let Topic::Project { .. } = &entry.topic {
-                    next.time.elapsed_minutes(entry.time).unwrap()
-                } else {
-                    0
-                }
-            })
-            .sum();
-        let hours = minutes / 60;
-        let minutes = minutes % 60;
+        let minutes: Minutes = self.entries.iter().map(|e| e.value.duration).sum();
+        let (hours, minutes) = minutes.hours_minutes();
         writeln!(f, "# Total: {hours:0>2}:{minutes:0>2}")?;
         Ok(())
     }
 }
 
-impl<'a> Format for &'a [Positioned<Entry>] {
+impl Format for [Positioned<Entry>] {
     fn format(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        for (entry, next) in self.iter().map(|e| &e.value).tuple_windows() {
-            (entry, next).format(f)?;
+        for entry in self {
+            entry.value.format(f)?;
         }
         Ok(())
     }
 }
 
-impl<'a> Format for (&'a Entry, &'a Entry) {
+impl Format for Entry {
     fn format(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if let Topic::Project {
-            identifier,
-            comment,
-        } = &self.0.topic
-        {
-            write!(f, "{} - {} {}", self.0.time, self.1.time, identifier)?;
-            if let Some(comment) = comment {
-                write!(f, " {comment}")?;
-            }
-            writeln!(f)?;
+        write!(
+            f,
+            "{} - {} {}",
+            self.start.value, self.end.value, self.identifier
+        )?;
+        if let Some(comment) = &self.comment {
+            write!(f, " {comment}")?;
         }
+        writeln!(f)?;
         Ok(())
     }
 }
