@@ -8,6 +8,7 @@ use std::ops::Add;
 pub mod convert;
 pub mod format;
 pub mod parse;
+pub mod report;
 
 #[derive(Debug, Default, Eq, PartialEq, Copy, Clone)]
 pub struct Minutes(usize);
