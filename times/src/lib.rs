@@ -2,26 +2,60 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
+use std::fmt::{Display, Formatter};
 use std::iter::Sum;
-use std::ops::Add;
+use std::ops::{Add, AddAssign, Sub};
 
 pub mod convert;
 pub mod format;
 pub mod parse;
 pub mod report;
 
-#[derive(Debug, Default, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, Copy, Clone, Ord, PartialOrd)]
 pub struct Minutes(usize);
 
 impl Minutes {
     #[must_use]
-    pub fn hours_minutes(self) -> (usize, usize) {
-        (self.0 / 60, self.0 % 60)
+    pub fn from_hours(hours: usize) -> Self {
+        Self(hours.checked_mul(60).unwrap())
+    }
+
+    #[must_use]
+    pub fn into_duration(self) -> ClockDuration {
+        ClockDuration {
+            hours: self.0 / 60,
+            minutes: self.0 % 60,
+        }
     }
 
     #[must_use]
     pub fn into_inner(self) -> usize {
         self.0
+    }
+}
+
+impl AddAssign<Minutes> for Minutes {
+    fn add_assign(&mut self, rhs: Minutes) {
+        self.0 += rhs.0;
+    }
+}
+
+impl Sub<Minutes> for Minutes {
+    type Output = Self;
+
+    fn sub(self, rhs: Minutes) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+pub struct ClockDuration {
+    hours: usize,
+    minutes: usize,
+}
+
+impl Display for ClockDuration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:0>2}:{:0>2}", self.hours, self.minutes)
     }
 }
 

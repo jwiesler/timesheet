@@ -1,3 +1,4 @@
+use std::ops::Add;
 use thiserror::Error;
 
 use crate::{Minutes, Positioned, Time, Topic};
@@ -12,7 +13,6 @@ pub enum Error {
     UnorderedEntries(usize),
 }
 
-#[derive(Debug)]
 #[cfg_attr(test, derive(Default, Eq, PartialEq))]
 pub struct Entry {
     pub start: Positioned<Time>,
@@ -22,11 +22,32 @@ pub struct Entry {
     pub comment: Option<String>,
 }
 
-#[derive(Debug)]
 pub struct Day {
     pub comments: Vec<String>,
     pub day: Positioned<String>,
     pub entries: Vec<Positioned<Entry>>,
+    pub times: AccumulatedTime,
+}
+
+#[must_use]
+fn accumulated_time<'a>(entries: impl IntoIterator<Item = &'a Entry>) -> AccumulatedTime {
+    entries
+        .into_iter()
+        .fold(AccumulatedTime::default(), |acc, entry| {
+            let AccumulatedTime { travel, work } = acc;
+            let duration = entry.duration;
+            if &entry.identifier == "TNGFa" {
+                AccumulatedTime {
+                    travel: travel + duration,
+                    work,
+                }
+            } else {
+                AccumulatedTime {
+                    work: work + duration,
+                    travel,
+                }
+            }
+        })
 }
 
 impl TryFrom<crate::Day> for Day {
@@ -67,15 +88,18 @@ impl TryFrom<crate::Day> for Day {
                 ));
             }
         }
+
+        let times = accumulated_time(new_entries.iter().map(|e| &e.value));
         Ok(Day {
             comments,
             day,
             entries: new_entries,
+            times,
         })
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 #[cfg_attr(test, derive(Debug, Eq, PartialEq))]
 pub struct AccumulatedTime {
     travel: Minutes,
@@ -101,36 +125,28 @@ impl AccumulatedTime {
     pub fn work_time(&self) -> Minutes {
         self.work
     }
+
+    #[must_use]
+    pub fn billable_time(&self) -> Minutes {
+        self.work + self.billable_travel_time()
+    }
 }
 
-impl Day {
-    #[must_use]
-    pub fn accumulated_time(&self) -> AccumulatedTime {
-        self.entries
-            .iter()
-            .fold(AccumulatedTime::default(), |acc, entry| {
-                let AccumulatedTime { travel, work } = acc;
-                let duration = entry.value.duration;
-                if &entry.value.identifier == "TNGFa" {
-                    AccumulatedTime {
-                        travel: travel + duration,
-                        work,
-                    }
-                } else {
-                    AccumulatedTime {
-                        work: work + duration,
-                        travel,
-                    }
-                }
-            })
-        // Reisezeit min(max(0, T[Reisezeit] – 45min) × 75%, 6h)
+impl Add<AccumulatedTime> for AccumulatedTime {
+    type Output = Self;
+
+    fn add(self, rhs: AccumulatedTime) -> Self::Output {
+        AccumulatedTime {
+            travel: self.travel + rhs.travel,
+            work: self.work + rhs.work,
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::convert::{billable_travel_time, AccumulatedTime, Day, Entry};
-    use crate::{Minutes, Positioned};
+    use crate::convert::{accumulated_time, billable_travel_time, AccumulatedTime, Entry};
+    use crate::Minutes;
 
     #[test]
     fn test_travel_time_calc() {
@@ -147,47 +163,31 @@ mod test {
 
     #[test]
     fn test_accumulated_time() {
-        let day = Day {
-            comments: vec![],
-            day: Positioned::new(0, "A".into()),
-            entries: vec![
-                Positioned::new(
-                    0,
-                    Entry {
-                        duration: 60.into(),
-                        identifier: "TNG".to_string(),
-                        ..Default::default()
-                    },
-                ),
-                Positioned::new(
-                    0,
-                    Entry {
-                        duration: 30.into(),
-                        identifier: "TNGFa".to_string(),
-                        ..Default::default()
-                    },
-                ),
-                Positioned::new(
-                    0,
-                    Entry {
-                        duration: 60.into(),
-                        identifier: "TNG".to_string(),
-                        ..Default::default()
-                    },
-                ),
-                Positioned::new(
-                    0,
-                    Entry {
-                        duration: 30.into(),
-                        identifier: "TNGFa".to_string(),
-                        ..Default::default()
-                    },
-                ),
-            ],
-        };
+        let entries = [
+            Entry {
+                duration: 60.into(),
+                identifier: "TNG".to_string(),
+                ..Default::default()
+            },
+            Entry {
+                duration: 30.into(),
+                identifier: "TNGFa".to_string(),
+                ..Default::default()
+            },
+            Entry {
+                duration: 60.into(),
+                identifier: "TNG".to_string(),
+                ..Default::default()
+            },
+            Entry {
+                duration: 30.into(),
+                identifier: "TNGFa".to_string(),
+                ..Default::default()
+            },
+        ];
 
         assert_eq!(
-            day.accumulated_time(),
+            accumulated_time(&entries),
             AccumulatedTime {
                 travel: 60.into(),
                 work: 120.into()

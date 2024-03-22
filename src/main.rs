@@ -42,6 +42,7 @@ enum Error {
     Validate(#[from] times::convert::Error),
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn run(cli: Cli) -> Result<(), Error> {
     let path = match &cli {
         Cli::Check { args, .. } | Cli::Report { args, .. } | Cli::Output { args, .. } => &args.path,
