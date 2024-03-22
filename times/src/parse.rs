@@ -1,4 +1,5 @@
 use crate::{Day, Entry, Positioned, Time, Topic};
+use std::fmt::{Display, Formatter};
 
 use std::io::BufRead;
 use std::mem::take;
@@ -16,12 +17,25 @@ pub enum EntryError {
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Failed to parse entry in line {0}: {1}")]
-    Entry(usize, EntryError),
     #[error("Io error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Expected a day in line {0}")]
     ExpectedDay(usize),
+    #[error("{0}")]
+    Entries(EntryErrors),
+}
+
+#[derive(Debug)]
+pub struct EntryErrors(pub Vec<Positioned<EntryError>>);
+
+impl Display for EntryErrors {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Encountered the following errors while parsing:")?;
+        for Positioned { line, value } in &self.0 {
+            write!(f, "\nFailed to parse entry in line {line}: {value}")?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -89,6 +103,7 @@ pub fn parse(r: impl BufRead) -> Result<Vec<Day>, Error> {
     let mut days = Vec::new();
     let mut current_day = None;
     let mut comments = Vec::new();
+    let mut errors = Vec::new();
     for (index, line) in r.lines().enumerate() {
         let index = index + 1;
         let line = line?;
@@ -96,7 +111,9 @@ pub fn parse(r: impl BufRead) -> Result<Vec<Day>, Error> {
         if line.is_empty() {
             continue;
         }
-        if let Some(line) = line.strip_prefix('*') {
+        if let Some(comment) = line.strip_prefix('#') {
+            comments.push(comment.to_owned());
+        } else if let Some(line) = line.strip_prefix('*') {
             if let Some(day) = current_day.take() {
                 days.push(day);
             }
@@ -105,18 +122,26 @@ pub fn parse(r: impl BufRead) -> Result<Vec<Day>, Error> {
                 day: Positioned::new(index, line.trim_start().to_owned()),
                 entries: Vec::new(),
             });
-            continue;
+        } else {
+            let day = current_day
+                .as_mut()
+                .ok_or_else(|| Error::ExpectedDay(index))?;
+            match line.parse() {
+                Ok(entry) => {
+                    day.entries.push(Positioned::new(index, entry));
+                }
+                Err(e) => errors.push(Positioned::new(index, e)),
+            }
         }
-        let day = current_day
-            .as_mut()
-            .ok_or_else(|| Error::ExpectedDay(index))?;
-        let entry = line.parse().map_err(|e| Error::Entry(index, e))?;
-        day.entries.push(Positioned::new(index, entry));
     }
     if let Some(day) = current_day.take() {
         days.push(day);
     }
-    Ok(days)
+    if errors.is_empty() {
+        Ok(days)
+    } else {
+        Err(Error::Entries(EntryErrors(errors)))
+    }
 }
 
 #[cfg(test)]
