@@ -1,4 +1,5 @@
 workspace = { members = ["times"] }
+
 [package]
 name = "timesheet"
 version = "0.1.0"
@@ -8,6 +9,7 @@ edition = "2021"
 
 [dependencies]
 times = { path = "times" }
-structopt = "0.3.26"
+
+clap = { version = "4.5", features = ["derive"] }
 fs-err = "2.11"
 thiserror = "1.0.59"
