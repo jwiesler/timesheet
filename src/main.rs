@@ -1,33 +1,33 @@
 #![warn(clippy::pedantic)]
 
+use clap::Parser;
 use std::io::{stdout, BufReader, Write};
 use std::process::ExitCode;
 
 use times::parse::parse;
 
 use fs_err::File;
-use structopt::StructOpt;
 use thiserror::Error;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct Args {
     /// Input path timesheet, defaults to `timesheet.txt`
     #[structopt(default_value = "timesheet.txt")]
     path: String,
 }
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 enum Cli {
     Check {
-        #[structopt(flatten)]
+        #[clap(flatten)]
         args: Args,
     },
     Report {
-        #[structopt(flatten)]
+        #[clap(flatten)]
         args: Args,
     },
     Output {
-        #[structopt(flatten)]
+        #[clap(flatten)]
         args: Args,
     },
 }
@@ -69,7 +69,7 @@ fn run(cli: Cli) -> Result<(), Error> {
 }
 
 fn main() -> ExitCode {
-    let command = Cli::from_args();
+    let command = Cli::parse();
     match run(command) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
