@@ -88,6 +88,15 @@ impl<'a> Format for &'a Day {
 
         crate::format::Format::format(self.entries.as_slice(), f)?;
 
+        if self.times.travel_time() > Minutes::default() {
+            writeln!(
+                f,
+                "# Travel time: {} ({} billable)",
+                self.times.travel_time().into_duration(),
+                self.times.billable_travel_time().into_duration()
+            )?;
+        }
+
         Ok(())
     }
 }

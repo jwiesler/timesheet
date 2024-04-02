@@ -36,7 +36,9 @@ fn accumulated_time<'a>(entries: impl IntoIterator<Item = &'a Entry>) -> Accumul
         .fold(AccumulatedTime::default(), |acc, entry| {
             let AccumulatedTime { travel, work } = acc;
             let duration = entry.duration;
-            if &entry.identifier == "TNGFa" {
+            if entry.identifier.starts_with("Ustd") {
+                AccumulatedTime { travel, work }
+            } else if &entry.identifier == "TNGFa" {
                 AccumulatedTime {
                     travel: travel + duration,
                     work,
@@ -99,7 +101,7 @@ impl TryFrom<crate::Day> for Day {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Clone)]
 #[cfg_attr(test, derive(Debug, Eq, PartialEq))]
 pub struct AccumulatedTime {
     travel: Minutes,
@@ -119,6 +121,11 @@ impl AccumulatedTime {
     #[must_use]
     pub fn billable_travel_time(&self) -> Minutes {
         billable_travel_time(self.travel)
+    }
+
+    #[must_use]
+    pub fn travel_time(&self) -> Minutes {
+        self.travel
     }
 
     #[must_use]
@@ -177,6 +184,16 @@ mod test {
             Entry {
                 duration: 60.into(),
                 identifier: "TNG".to_string(),
+                ..Default::default()
+            },
+            Entry {
+                duration: 30.into(),
+                identifier: "Ustd".to_string(),
+                ..Default::default()
+            },
+            Entry {
+                duration: 30.into(),
+                identifier: "UstdPart".to_string(),
                 ..Default::default()
             },
             Entry {
