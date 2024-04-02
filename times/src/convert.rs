@@ -209,6 +209,6 @@ mod test {
                 travel: 60.into(),
                 work: 120.into()
             }
-        )
+        );
     }
 }

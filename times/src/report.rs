@@ -71,7 +71,9 @@ impl<'a> Format for &'a Day {
     fn format(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "* {}", self.day.value)?;
         let minutes = self.times.billable_time();
-        if minutes != Minutes::default() {
+        if minutes == Minutes::default() {
+            writeln!(f)?;
+        } else {
             let duration = minutes.into_duration();
             write!(f, " -> {duration}")?;
             let expected_time = Minutes::from_hours(8);
@@ -82,8 +84,6 @@ impl<'a> Format for &'a Day {
                 output_time_delta(f, minutes, expected_time)?;
                 writeln!(f, ")")?;
             }
-        } else {
-            writeln!(f)?;
         }
 
         crate::format::Format::format(self.entries.as_slice(), f)?;

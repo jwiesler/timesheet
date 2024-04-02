@@ -175,7 +175,7 @@ mod test {
         assert_eq!(
             Time::new(12, 00)
                 .unwrap()
-                .elapsed(Time::new(12, 01).unwrap()),
+                .elapsed(Time::new(12, 1).unwrap()),
             None
         );
     }
