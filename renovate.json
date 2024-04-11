@@ -9,15 +9,13 @@
     "updatePinnedDependencies": false,
     "lockFileMaintenance": {
         "automerge": true,
-        "enabled": true,
-        "schedule": [
-            "before 4am"
-        ]
+        "enabled": true
     },
     "packageRules": [
         {
             "automerge": true,
             "matchUpdateTypes": [
+                "major",
                 "minor",
                 "patch"
             ]
