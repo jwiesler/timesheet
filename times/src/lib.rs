@@ -79,7 +79,7 @@ impl From<usize> for Minutes {
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Default, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 pub struct Time {
     pub hour: u8,
     pub minute: u8,
