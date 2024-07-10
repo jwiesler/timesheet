@@ -43,7 +43,7 @@ impl<'a> Format for &'a [Day] {
             if day.entries.is_empty() {
                 continue;
             }
-            expected_min_work += Minutes::from_hours(8);
+            expected_min_work += day.expected_time();
             if first {
                 first = false;
             } else {
@@ -76,7 +76,7 @@ impl<'a> Format for &'a Day {
         } else {
             let duration = minutes.into_duration();
             write!(f, " -> {duration}")?;
-            let expected_time = Minutes::from_hours(8);
+            let expected_time = self.expected_time();
             if minutes == expected_time {
                 writeln!(f)?;
             } else {
