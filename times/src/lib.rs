@@ -6,6 +6,8 @@ use std::fmt::{Display, Formatter};
 use std::iter::Sum;
 use std::ops::{Add, AddAssign, Sub};
 
+use chrono::{Datelike, NaiveDate, Weekday};
+
 pub mod convert;
 pub mod format;
 pub mod parse;
@@ -117,6 +119,50 @@ pub enum Topic {
     },
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct Date(NaiveDate);
+
+impl Date {
+    #[must_use]
+    pub fn year(&self) -> i32 {
+        self.0.year()
+    }
+
+    #[must_use]
+    pub fn month(&self) -> u32 {
+        self.0.month()
+    }
+
+    #[must_use]
+    pub fn is_weekday(&self) -> bool {
+        !matches!(self.0.weekday(), Weekday::Sat | Weekday::Sun)
+    }
+}
+
+fn weekday_to_str(weekday: Weekday) -> &'static str {
+    match weekday {
+        Weekday::Mon => "Mo",
+        Weekday::Tue => "Di",
+        Weekday::Wed => "Mi",
+        Weekday::Thu => "Do",
+        Weekday::Fri => "Fr",
+        Weekday::Sat => "Sa",
+        Weekday::Sun => "So",
+    }
+}
+
+impl Display for Date {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}. {}.{:0>2}.",
+            weekday_to_str(self.0.weekday()),
+            self.0.day(),
+            self.0.month(),
+        )
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Entry {
     pub time: Time,
@@ -126,7 +172,7 @@ pub struct Entry {
 #[derive(Debug)]
 pub struct Day {
     pub comments: Vec<String>,
-    pub day: Positioned<String>,
+    pub day: Positioned<Date>,
     pub entries: Vec<Positioned<Entry>>,
 }
 

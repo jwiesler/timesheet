@@ -1,11 +1,13 @@
-use crate::{Day, Entry, Positioned, Time, Topic};
 use std::fmt::{Display, Formatter};
-
 use std::io::BufRead;
 use std::mem::take;
 use std::str::FromStr;
 
+use chrono::{Datelike, Weekday};
+use chrono::format::{Item, Numeric, Pad, Parsed};
 use thiserror::Error;
+
+use crate::{Date, Day, Entry, Positioned, Time, Topic};
 
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum EntryError {
@@ -13,16 +15,32 @@ pub enum EntryError {
     Time,
     #[error("Missing time")]
     MissingTime,
+    #[error("Failed to parse date of day: {0}")]
+    Date(DateError),
+}
+
+#[derive(Debug, Error, Eq, PartialEq)]
+pub enum DateError {
+    #[error("Expected a date in the format <day of week>. <day>.<month>.")]
+    Format,
+    #[error("Invalid date")]
+    Date,
+    #[error("Invalid day of week")]
+    DayOfWeek,
+    #[error("Day of week does not match the given date")]
+    UnexpectedDayOfWeek,
+    #[error("Month does not match the given month")]
+    UnexpectedMonth,
 }
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Io error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("{0}")]
+    Many(EntryErrors),
     #[error("Expected a day in line {0}")]
     ExpectedDay(usize),
-    #[error("{0}")]
-    Entries(EntryErrors),
 }
 
 #[derive(Debug)]
@@ -99,7 +117,45 @@ impl FromStr for Entry {
     }
 }
 
-pub fn parse(r: impl BufRead) -> Result<Vec<Day>, Error> {
+fn parse_weekday(s: &str) -> Result<Weekday, DateError> {
+    match s {
+        "Mo" => Ok(Weekday::Mon),
+        "Di" => Ok(Weekday::Tue),
+        "Mi" => Ok(Weekday::Wed),
+        "Do" => Ok(Weekday::Thu),
+        "Fr" => Ok(Weekday::Fri),
+        "Sa" => Ok(Weekday::Sat),
+        "So" => Ok(Weekday::Sun),
+        _ => Err(DateError::DayOfWeek),
+    }
+}
+
+fn parse_date(line: &str, month: Date) -> Result<Date, DateError> {
+    const ITEMS: &[Item<'static>] = &[
+        Item::Numeric(Numeric::Day, Pad::Zero),
+        Item::Literal("."),
+        Item::Numeric(Numeric::Month, Pad::Zero),
+        Item::Literal("."),
+    ];
+    let (weekday, date) = line.split_once('.').ok_or(DateError::Format)?;
+
+    let mut parsed = Parsed::new();
+    chrono::format::parse(&mut parsed, date.trim(), ITEMS.iter()).map_err(|_| DateError::Format)?;
+    parsed.set_year(month.year().into()).unwrap();
+    let date = parsed.to_naive_date().map_err(|_| DateError::Date)?;
+    if date.month() != month.month() {
+        return Err(DateError::UnexpectedMonth);
+    }
+
+    let weekday = parse_weekday(weekday.trim())?;
+    if date.weekday() != weekday {
+        return Err(DateError::UnexpectedDayOfWeek);
+    }
+
+    Ok(Date(date))
+}
+
+pub fn parse(r: impl BufRead, month: Date) -> Result<Vec<Day>, Error> {
     let mut days = Vec::new();
     let mut current_day = None;
     let mut comments = Vec::new();
@@ -117,9 +173,14 @@ pub fn parse(r: impl BufRead) -> Result<Vec<Day>, Error> {
             if let Some(day) = current_day.take() {
                 days.push(day);
             }
+
+            let date = parse_date(line, month).unwrap_or_else(|e| {
+                errors.push(Positioned::new(index, EntryError::Date(e)));
+                month
+            });
             current_day = Some(Day {
                 comments: take(&mut comments),
-                day: Positioned::new(index, line.trim_start().to_owned()),
+                day: Positioned::new(index, date),
                 entries: Vec::new(),
             });
         } else {
@@ -140,14 +201,55 @@ pub fn parse(r: impl BufRead) -> Result<Vec<Day>, Error> {
     if errors.is_empty() {
         Ok(days)
     } else {
-        Err(Error::Entries(EntryErrors(errors)))
+        Err(Error::Many(EntryErrors(errors)))
     }
+}
+
+#[must_use]
+pub fn filename(name: &str) -> Option<Date> {
+    const ITEMS: &[Item<'static>] = &[
+        Item::Numeric(Numeric::Year, Pad::Zero),
+        Item::Literal("-"),
+        Item::Numeric(Numeric::Month, Pad::Zero),
+    ];
+
+    let mut parsed = Parsed::new();
+    chrono::format::parse(&mut parsed, name, ITEMS.iter()).ok()?;
+    parsed.set_day(1).ok()?;
+    parsed.to_naive_date().ok().map(Date)
 }
 
 #[cfg(test)]
 mod test {
-    use crate::parse::{EntryError, TimeError};
-    use crate::{Entry, Time, Topic};
+    use chrono::NaiveDate;
+
+    use crate::{Date, Entry, Time, Topic};
+    use crate::parse::{DateError, EntryError, parse_date, TimeError};
+
+    #[test]
+    fn test_parse_date() {
+        let month = Date(NaiveDate::from_ymd_opt(2024, 4, 1).unwrap());
+
+        assert_eq!(
+            parse_date("Sa. 20.04.", month),
+            Ok(Date(NaiveDate::from_ymd_opt(2024, 4, 20).unwrap()))
+        );
+
+        let tests = [
+            ("", DateError::Format),
+            ("20.04.", DateError::Format),
+            ("Sa 20.04.", DateError::Format),
+            ("Si. 20.04.", DateError::DayOfWeek),
+            ("Sa. 20.04", DateError::Format),
+            ("Sa. 31.04.", DateError::Date),
+            ("So. 20.04.", DateError::UnexpectedDayOfWeek),
+            ("Sa. 20.05.", DateError::UnexpectedMonth),
+        ];
+
+        for (text, e) in tests {
+            assert_eq!(parse_date(text, month), Err(e), "{text}");
+        }
+    }
 
     #[test]
     fn test_parse_time() {

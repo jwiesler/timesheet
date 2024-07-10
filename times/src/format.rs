@@ -1,7 +1,7 @@
-use crate::convert::{Day, Entry};
-use crate::{Positioned, Time};
-
 use std::fmt::{Display, Formatter, Result};
+
+use crate::{Positioned, Time};
+use crate::convert::{Day, Entry};
 
 pub struct Output<'a>(pub &'a [Day]);
 
@@ -67,5 +67,46 @@ impl Format for Entry {
 impl Display for Time {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{:0>2}:{:0>2}", self.hour, self.minute)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{BufReader, Cursor};
+
+    use chrono::NaiveDate;
+
+    use crate::Date;
+    use crate::parse::parse;
+
+    use super::*;
+
+    #[test]
+    fn test_format() {
+        let text = r"
+        * Sa. 20.04.
+        09:00 AA A
+        12:30
+        13:00 AANB B
+        15:00 TNG C
+        17:30
+        ";
+        let days = parse(
+            &mut BufReader::new(Cursor::new(text)),
+            Date(NaiveDate::from_ymd_opt(2024, 4, 1).unwrap()),
+        )
+        .unwrap();
+        let days = days
+            .into_iter()
+            .map(Day::try_from)
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+
+        let expected = r"* Sa. 20.04.
+09:00 - 12:30 AA A
+13:00 - 15:00 AANB B
+15:00 - 17:30 TNG C
+";
+        assert_eq!(format!("{}", Output(&days)), expected);
     }
 }
