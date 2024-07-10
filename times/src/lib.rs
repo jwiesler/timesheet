@@ -10,6 +10,7 @@ use chrono::{Datelike, NaiveDate, Weekday};
 
 pub mod convert;
 pub mod format;
+pub mod generate;
 pub mod parse;
 pub mod report;
 
@@ -136,6 +137,22 @@ impl Date {
     #[must_use]
     pub fn is_weekday(&self) -> bool {
         !matches!(self.0.weekday(), Weekday::Sat | Weekday::Sun)
+    }
+
+    pub fn following_day_in_month(&self) -> Option<Self> {
+        self.0
+            .iter_days()
+            .take_while(|d| d.month() == self.0.month())
+            .map(Date)
+            .nth(1)
+    }
+
+    pub fn next_weekday_in_month(&self) -> Option<Self> {
+        self.0
+            .iter_days()
+            .take_while(|d| d.month() == self.0.month())
+            .map(Date)
+            .find(Date::is_weekday)
     }
 }
 
