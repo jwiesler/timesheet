@@ -1,18 +1,18 @@
 #![warn(clippy::pedantic)]
 
-use clap::Parser;
-use std::io::{stdout, BufReader, Write};
+use std::io::{BufReader, stdout, Write};
+use std::path::Path;
 use std::process::ExitCode;
 
-use times::parse::parse;
-
+use clap::Parser;
 use fs_err::File;
 use thiserror::Error;
 
+use times::parse::{filename, parse};
+
 #[derive(Parser)]
 struct Args {
-    /// Input path timesheet, defaults to `timesheet.txt`
-    #[structopt(default_value = "timesheet.txt")]
+    /// Input path timesheet
     path: String,
 }
 
@@ -47,8 +47,17 @@ fn run(cli: Cli) -> Result<(), Error> {
     let path = match &cli {
         Cli::Check { args, .. } | Cli::Report { args, .. } | Cli::Output { args, .. } => &args.path,
     };
+    let path = Path::new(path);
+    let stem = path
+        .file_stem()
+        .expect("need a file with a name")
+        .to_str()
+        .unwrap();
+    let month = filename(stem).unwrap_or_else(|| {
+        panic!("failed to parse month from input file stem {stem:?}, expected format YYYY-MM")
+    });
     let file = File::open(path).map_err(Error::InputFile)?;
-    let days = parse(&mut BufReader::new(file))?;
+    let days = parse(&mut BufReader::new(file), month)?;
     let days = days
         .into_iter()
         .map(times::convert::Day::try_from)

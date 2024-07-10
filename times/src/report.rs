@@ -1,8 +1,8 @@
-use crate::convert::{AccumulatedTime, Day};
-use crate::Minutes;
-
 use std::fmt::{Display, Formatter, Result};
 use std::ops::Add;
+
+use crate::convert::{AccumulatedTime, Day};
+use crate::Minutes;
 
 pub struct Output<'a>(pub &'a [Day]);
 

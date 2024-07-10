@@ -1,7 +1,8 @@
 use std::ops::Add;
+
 use thiserror::Error;
 
-use crate::{Minutes, Positioned, Time, Topic};
+use crate::{Date, Minutes, Positioned, Time, Topic};
 
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum Error {
@@ -28,9 +29,20 @@ pub struct Entry {
 
 pub struct Day {
     pub comments: Vec<String>,
-    pub day: Positioned<String>,
+    pub day: Positioned<Date>,
     pub entries: Vec<Positioned<Entry>>,
     pub times: AccumulatedTime,
+}
+
+impl Day {
+    #[must_use]
+    pub fn expected_time(&self) -> Minutes {
+        if self.day.value.is_weekday() {
+            Minutes::from_hours(8)
+        } else {
+            Minutes::default()
+        }
+    }
 }
 
 #[must_use]
@@ -51,22 +63,18 @@ fn accumulated_time<'a>(entries: impl IntoIterator<Item = &'a Entry>) -> Accumul
                     travel: travel + duration,
                     work,
                 }
+            } else if last_travel
+                .filter(|t| t.start.value <= entry.start.value && entry.end.value <= t.end.value)
+                .is_some()
+            {
+                AccumulatedTime {
+                    work: work + duration,
+                    travel: travel - duration,
+                }
             } else {
-                if last_travel
-                    .filter(|t| {
-                        t.start.value <= entry.start.value && entry.end.value <= t.end.value
-                    })
-                    .is_some()
-                {
-                    AccumulatedTime {
-                        work: work + duration,
-                        travel: travel - duration,
-                    }
-                } else {
-                    AccumulatedTime {
-                        work: work + duration,
-                        travel,
-                    }
+                AccumulatedTime {
+                    work: work + duration,
+                    travel,
                 }
             }
         })
@@ -208,10 +216,10 @@ impl Add<AccumulatedTime> for AccumulatedTime {
 
 #[cfg(test)]
 mod test {
-    use crate::convert::{
-        accumulated_time, billable_travel_time, validate_ordering, AccumulatedTime, Entry, Error,
-    };
     use crate::{Minutes, Positioned, Time};
+    use crate::convert::{
+        accumulated_time, AccumulatedTime, billable_travel_time, Entry, Error, validate_ordering,
+    };
 
     #[test]
     fn travel_time_calc() {
