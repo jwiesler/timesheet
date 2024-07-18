@@ -1,10 +1,12 @@
 #![warn(clippy::pedantic)]
 
+use std::borrow::Cow;
 use std::fs::OpenOptions;
-use std::io::{stdout, BufReader, BufWriter, Write};
+use std::io::{BufReader, BufWriter, stdout, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
+use chrono::Datelike;
 use clap::Parser;
 use fs_err::File;
 use thiserror::Error;
@@ -15,7 +17,7 @@ use times::parse::{filename, parse};
 #[derive(Parser)]
 struct Args {
     /// Input path timesheet
-    path: String,
+    path: Option<String>,
 }
 
 #[derive(Parser)]
@@ -57,9 +59,21 @@ fn run(cli: &Cli) -> Result<(), Error> {
         Cli::Check { args, .. }
         | Cli::Report { args, .. }
         | Cli::Output { args, .. }
-        | Cli::Add { args, .. } => &args.path,
+        | Cli::Add { args, .. } => args.path.as_ref(),
     };
-    let path = Path::new(path);
+    let path = path.map_or_else(
+        || {
+            let mut cd = std::env::current_dir().unwrap();
+            cd.push("timesheets");
+            let now = chrono::offset::Local::now();
+            let year = now.year();
+            let month = now.month();
+            cd.push(format!("{year}-{month:0>2}.tsh"));
+            Cow::Owned(cd)
+        },
+        |p| Cow::Borrowed(Path::new(p)),
+    );
+    let path = path.as_ref();
     let stem = path
         .file_stem()
         .expect("need a file with a name")
