@@ -15,6 +15,7 @@ pub enum Error {
 pub enum Template {
     Empty,
     TechDay,
+    Holiday,
     Normal,
 }
 
@@ -47,6 +48,7 @@ impl Template {
         match name {
             "empty" => Ok(Template::Empty),
             "techday" => Ok(Template::TechDay),
+            "holiday" => Ok(Template::Holiday),
             "normal" => Ok(Template::Normal),
             _ => Err(Error::UnknownTemplate),
         }
@@ -69,6 +71,12 @@ impl Template {
                     .header(date)
                     .line("09:00 TNGFo Techday")
                     .line("17:00");
+            }
+            Template::Holiday => {
+                if !args.is_empty() {
+                    return Err(Error::Argc(0, args.len()));
+                }
+                output.header(date).line("09:00 Urlaub").line("17:00");
             }
             Template::Normal => {
                 if args.is_empty() || 2 < args.len() {
