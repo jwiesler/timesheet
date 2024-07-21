@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 thiserror = "1.0.59"
 chrono = "0.4.38"
+anstyle = "1.0.7"
