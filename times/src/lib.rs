@@ -189,7 +189,7 @@ pub struct Entry {
 #[derive(Debug)]
 pub struct Day {
     pub comments: Vec<String>,
-    pub day: Positioned<Date>,
+    pub date: Positioned<Date>,
     pub entries: Vec<Positioned<Entry>>,
 }
 

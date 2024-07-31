@@ -3,8 +3,8 @@ use std::io::BufRead;
 use std::mem::take;
 use std::str::FromStr;
 
-use chrono::{Datelike, Weekday};
 use chrono::format::{Item, Numeric, Pad, Parsed};
+use chrono::{Datelike, Weekday};
 use thiserror::Error;
 
 use crate::{Date, Day, Entry, Positioned, Time, Topic};
@@ -31,6 +31,8 @@ pub enum DateError {
     UnexpectedDayOfWeek,
     #[error("Month does not match the given month")]
     UnexpectedMonth,
+    #[error("Entry out of order, expected strictly monotonically increasing dates")]
+    EntryOutOfOrder,
 }
 
 #[derive(Debug, Error)]
@@ -130,7 +132,7 @@ fn parse_weekday(s: &str) -> Result<Weekday, DateError> {
     }
 }
 
-fn parse_date(line: &str, month: Date) -> Result<Date, DateError> {
+fn parse_date(line: &str, month: Date, after: u32) -> Result<Date, DateError> {
     const ITEMS: &[Item<'static>] = &[
         Item::Numeric(Numeric::Day, Pad::Zero),
         Item::Literal("."),
@@ -152,12 +154,16 @@ fn parse_date(line: &str, month: Date) -> Result<Date, DateError> {
         return Err(DateError::UnexpectedDayOfWeek);
     }
 
+    if date.day() <= after {
+        return Err(DateError::EntryOutOfOrder);
+    }
+
     Ok(Date(date))
 }
 
 pub fn parse(r: impl BufRead, month: Date) -> Result<Vec<Day>, Error> {
     let mut days = Vec::new();
-    let mut current_day = None;
+    let mut current_day: Option<Day> = None;
     let mut comments = Vec::new();
     let mut errors = Vec::new();
     for (index, line) in r.lines().enumerate() {
@@ -170,17 +176,19 @@ pub fn parse(r: impl BufRead, month: Date) -> Result<Vec<Day>, Error> {
         if let Some(comment) = line.strip_prefix('#') {
             comments.push(comment.to_owned());
         } else if let Some(line) = line.strip_prefix('*') {
-            if let Some(day) = current_day.take() {
+            let last_day = current_day.take().map(|day| {
+                let date = day.date.value.0.day();
                 days.push(day);
-            }
+                date
+            });
 
-            let date = parse_date(line, month).unwrap_or_else(|e| {
+            let date = parse_date(line, month, last_day.unwrap_or_default()).unwrap_or_else(|e| {
                 errors.push(Positioned::new(index, EntryError::Date(e)));
                 month
             });
             current_day = Some(Day {
                 comments: take(&mut comments),
-                day: Positioned::new(index, date),
+                date: Positioned::new(index, date),
                 entries: Vec::new(),
             });
         } else {
@@ -206,7 +214,7 @@ pub fn parse(r: impl BufRead, month: Date) -> Result<Vec<Day>, Error> {
 }
 
 #[must_use]
-pub fn filename(name: &str) -> Option<Date> {
+pub fn from_stem(stem: &str) -> Option<Date> {
     const ITEMS: &[Item<'static>] = &[
         Item::Numeric(Numeric::Year, Pad::Zero),
         Item::Literal("-"),
@@ -214,7 +222,7 @@ pub fn filename(name: &str) -> Option<Date> {
     ];
 
     let mut parsed = Parsed::new();
-    chrono::format::parse(&mut parsed, name, ITEMS.iter()).ok()?;
+    chrono::format::parse(&mut parsed, stem, ITEMS.iter()).ok()?;
     parsed.set_day(1).ok()?;
     parsed.to_naive_date().ok().map(Date)
 }
@@ -223,16 +231,21 @@ pub fn filename(name: &str) -> Option<Date> {
 mod test {
     use chrono::NaiveDate;
 
+    use crate::parse::{parse_date, DateError, EntryError, TimeError};
     use crate::{Date, Entry, Time, Topic};
-    use crate::parse::{DateError, EntryError, parse_date, TimeError};
 
     #[test]
     fn test_parse_date() {
         let month = Date(NaiveDate::from_ymd_opt(2024, 4, 1).unwrap());
 
         assert_eq!(
-            parse_date("Sa. 20.04.", month),
+            parse_date("Sa. 20.04.", month, 0),
             Ok(Date(NaiveDate::from_ymd_opt(2024, 4, 20).unwrap()))
+        );
+
+        assert_eq!(
+            parse_date("Sa. 20.04.", month, 20),
+            Err(DateError::EntryOutOfOrder)
         );
 
         let tests = [
@@ -247,7 +260,7 @@ mod test {
         ];
 
         for (text, e) in tests {
-            assert_eq!(parse_date(text, month), Err(e), "{text}");
+            assert_eq!(parse_date(text, month, 0), Err(e), "{text}");
         }
     }
 

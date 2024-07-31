@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 use std::fs::OpenOptions;
-use std::io::{BufReader, BufWriter, stdout, Write};
+use std::io::{stdout, BufReader, BufWriter, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -12,7 +12,7 @@ use fs_err::File;
 use thiserror::Error;
 
 use times::generate::Template;
-use times::parse::{filename, parse};
+use times::parse::{from_stem, parse};
 
 #[derive(Parser)]
 struct Args {
@@ -79,7 +79,7 @@ fn run(cli: &Cli) -> Result<(), Error> {
         .expect("need a file with a name")
         .to_str()
         .unwrap();
-    let month = filename(stem).unwrap_or_else(|| {
+    let month = from_stem(stem).unwrap_or_else(|| {
         panic!("failed to parse month from input file stem {stem:?}, expected format YYYY-MM")
     });
     let file = File::open(path).map_err(Error::InputFile)?;
@@ -107,7 +107,7 @@ fn run(cli: &Cli) -> Result<(), Error> {
             let template = Template::by_name(template)?;
             let date = days
                 .last()
-                .and_then(|d| d.day.value.following_day_in_month())
+                .and_then(|d| d.date.value.following_day_in_month())
                 .unwrap_or(month)
                 .next_weekday_in_month()
                 .expect("last day in the month");
