@@ -3,8 +3,8 @@ use std::ops::Add;
 
 use anstyle::{AnsiColor, Color, Style};
 
-use crate::{Minutes, Positioned};
 use crate::convert::{AccumulatedTime, Day, Entry};
+use crate::{Minutes, Positioned};
 
 const DATE: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::BrightYellow)));
 const PROJECT: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::BrightGreen)));
@@ -122,7 +122,7 @@ impl<'a> Format for &'a Day {
             f,
             "{}* {}{}",
             DATE.render(),
-            self.day.value,
+            self.date.value,
             DATE.render_reset()
         )?;
         let minutes = self.times.billable_time();

@@ -56,7 +56,7 @@ pub struct Entry {
 
 pub struct Day {
     pub comments: Vec<String>,
-    pub day: Positioned<Date>,
+    pub date: Positioned<Date>,
     pub entries: Vec<Positioned<Entry>>,
     pub times: AccumulatedTime,
 }
@@ -64,7 +64,7 @@ pub struct Day {
 impl Day {
     #[must_use]
     pub fn expected_time(&self) -> Minutes {
-        if self.day.value.is_weekday() {
+        if self.date.value.is_weekday() {
             Minutes::from_hours(8)
         } else {
             Minutes::default()
@@ -155,7 +155,7 @@ impl TryFrom<crate::Day> for Day {
     fn try_from(value: crate::Day) -> Result<Self, Self::Error> {
         let crate::Day {
             comments,
-            day,
+            date,
             entries,
         } = value;
         let mut new_entries: Vec<Positioned<Entry>> = Vec::with_capacity(entries.len());
@@ -205,7 +205,7 @@ impl TryFrom<crate::Day> for Day {
         let times = accumulated_time(new_entries.iter().map(|e| &e.value));
         Ok(Day {
             comments,
-            day,
+            date,
             entries: new_entries,
             times,
         })
@@ -292,11 +292,11 @@ impl Add<AccumulatedTime> for AccumulatedTime {
 
 #[cfg(test)]
 mod test {
-    use crate::{Minutes, Positioned, Time};
     use crate::convert::{
-        accumulated_time, AccumulatedTime, billable_travel_time, Entry, Error, Identifier,
-        TravelTime, validate_ordering,
+        accumulated_time, billable_travel_time, validate_ordering, AccumulatedTime, Entry, Error,
+        Identifier, TravelTime,
     };
+    use crate::{Minutes, Positioned, Time};
 
     #[test]
     fn travel_time_calc() {

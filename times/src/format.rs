@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{Positioned, Time};
 use crate::convert::{Day, Entry};
+use crate::{Positioned, Time};
 
 pub struct Output<'a>(pub &'a [Day]);
 
@@ -33,7 +33,7 @@ impl<'a> Format for &'a [Day] {
 
 impl<'a> Format for &'a Day {
     fn format(&self, f: &mut Formatter<'_>) -> Result {
-        writeln!(f, "* {}", self.day.value)?;
+        writeln!(f, "* {}", self.date.value)?;
         self.entries.as_slice().format(f)?;
 
         Ok(())
@@ -76,8 +76,8 @@ mod tests {
 
     use chrono::NaiveDate;
 
-    use crate::Date;
     use crate::parse::parse;
+    use crate::Date;
 
     use super::*;
 

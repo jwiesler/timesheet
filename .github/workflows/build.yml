@@ -13,5 +13,6 @@ jobs:
           toolchain: stable
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
       - run: cargo clippy --workspace --tests
       - run: cargo test --workspace
