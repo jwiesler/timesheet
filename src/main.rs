@@ -17,7 +17,8 @@ use times::parse::{from_stem, parse};
 #[derive(Parser)]
 struct Args {
     /// Input path timesheet
-    path: Option<String>,
+    #[clap(short, long)]
+    file: Option<String>,
 }
 
 #[derive(Parser)]
@@ -59,7 +60,7 @@ fn run(cli: &Cli) -> Result<(), Error> {
         Cli::Check { args, .. }
         | Cli::Report { args, .. }
         | Cli::Output { args, .. }
-        | Cli::Add { args, .. } => args.path.as_ref(),
+        | Cli::Add { args, .. } => args.file.as_ref(),
     };
     let path = path.map_or_else(
         || {
