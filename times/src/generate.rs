@@ -1,4 +1,4 @@
-use std::fmt::{Arguments, Write};
+use std::fmt::{Display, Formatter, Write};
 
 use thiserror::Error;
 
@@ -12,6 +12,7 @@ pub enum Error {
     Argc(usize, usize),
 }
 
+#[derive(Debug)]
 pub enum Template {
     Empty,
     TechDay,
@@ -20,71 +21,52 @@ pub enum Template {
     Ill,
 }
 
-struct Builder(String);
+trait FormatterEx {
+    fn header(&mut self, date: Date) -> std::fmt::Result;
+}
 
-impl Builder {
-    fn new() -> Self {
-        Self(String::new())
-    }
-
-    fn header(&mut self, date: Date) -> &mut Self {
-        self.line_fmt(format_args!("\n* {date}"))
-    }
-
-    fn line_fmt(&mut self, args: Arguments<'_>) -> &mut Self {
-        self.0.write_fmt(args).unwrap();
-        self.0.push('\n');
-        self
-    }
-
-    fn line(&mut self, line: &str) -> &mut Self {
-        self.0.push_str(line);
-        self.0.push('\n');
-        self
+impl<'a> FormatterEx for Formatter<'a> {
+    fn header(&mut self, date: Date) -> std::fmt::Result {
+        writeln!(self, "\n* {date}")
     }
 }
 
 impl Template {
-    pub fn by_name(name: &str) -> Result<Self, Error> {
-        match name {
-            "empty" => Ok(Template::Empty),
-            "techday" => Ok(Template::TechDay),
-            "holiday" | "timeoff" | "vacation" => Ok(Template::Holiday),
-            "normal" => Ok(Template::Normal),
-            "ill" | "sick" => Ok(Template::Ill),
-            _ => Err(Error::UnknownTemplate),
-        }
+    fn full_day(output: &mut String, date: Date, what: &str) -> std::fmt::Result {
+        write_with(output, |f| {
+            f.header(date)?;
+            writeln!(f, "09:00 {what}")?;
+            writeln!(f, "17:00")
+        })
     }
 
     pub fn execute(&self, date: Date, args: &[String]) -> Result<String, Error> {
-        let mut output = Builder::new();
+        let mut output = String::new();
+
         match self {
             Template::Empty => {
                 if !args.is_empty() {
                     return Err(Error::Argc(0, args.len()));
                 }
-                output.header(date);
+                write_with(&mut output, |f| f.header(date)).unwrap();
             }
             Template::TechDay => {
                 if !args.is_empty() {
                     return Err(Error::Argc(0, args.len()));
                 }
-                output
-                    .header(date)
-                    .line("09:00 TNGFo Techday")
-                    .line("17:00");
+                Self::full_day(&mut output, date, "TNGFo Techday").unwrap();
             }
             Template::Holiday => {
                 if !args.is_empty() {
                     return Err(Error::Argc(0, args.len()));
                 }
-                output.header(date).line("09:00 Urlaub").line("17:00");
+                Self::full_day(&mut output, date, "Urlaub").unwrap();
             }
             Template::Ill => {
                 if !args.is_empty() {
                     return Err(Error::Argc(0, args.len()));
                 }
-                output.header(date).line("09:00 Krank").line("17:00");
+                Self::full_day(&mut output, date, "Krank").unwrap();
             }
             Template::Normal => {
                 if args.is_empty() || 2 < args.len() {
@@ -93,17 +75,60 @@ impl Template {
                 let arg_0 = &args[0];
                 let arg_1 = args.get(1).unwrap_or(arg_0);
 
-                output
-                    .header(date)
-                    .line("09:00 AA Ops Daily")
-                    .line("09:15 AA Inference Daily")
-                    .line_fmt(format_args!("09:45 AA {arg_0}"))
-                    .line("12:30")
-                    .line_fmt(format_args!("13:00 AA {arg_1}"))
-                    .line("17:30");
+                write_with(&mut output, |f| {
+                    f.header(date)?;
+                    writeln!(f, "09:00 AA Ops Daily")?;
+                    writeln!(f, "09:15 AA Inference Daily")?;
+                    writeln!(f, "09:45 AA {arg_0}")?;
+                    writeln!(f, "12:30")?;
+                    writeln!(f, "13:00 AA {arg_1}")?;
+                    writeln!(f, "17:30")
+                })
+                .unwrap();
             }
         }
 
-        Ok(output.0)
+        Ok(output)
+    }
+}
+
+struct WithFormatter<F>(F);
+
+impl<F: for<'a> Fn(&mut Formatter<'a>) -> std::fmt::Result> Display for WithFormatter<F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0(f)
+    }
+}
+
+fn write_with<F: for<'a> Fn(&mut Formatter<'a>) -> std::fmt::Result>(
+    r: &mut String,
+    f: F,
+) -> std::fmt::Result {
+    write!(r, "{}", WithFormatter(f))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn generate() {
+        let date = Date::new(NaiveDate::from_ymd_opt(2024, 8, 5).unwrap());
+        let tests = [
+            (Template::Empty, vec![], "\n* Mo. 5.08.\n"),
+            (Template::TechDay, vec![], "\n* Mo. 5.08.\n09:00 TNGFo Techday\n17:00\n"),
+            (Template::Holiday, vec![], "\n* Mo. 5.08.\n09:00 Urlaub\n17:00\n"),
+            (Template::Normal, vec!["A".into()], "\n* Mo. 5.08.\n09:00 AA Ops Daily\n09:15 AA Inference Daily\n09:45 AA A\n12:30\n13:00 AA A\n17:30\n"),
+            (Template::Normal, vec!["A".into(), "B".into()], "\n* Mo. 5.08.\n09:00 AA Ops Daily\n09:15 AA Inference Daily\n09:45 AA A\n12:30\n13:00 AA B\n17:30\n"),
+            (Template::Ill, vec![], "\n* Mo. 5.08.\n09:00 Krank\n17:00\n")
+        ];
+        for (template, args, result) in tests {
+            assert_eq!(
+                template.execute(date, &args).as_deref(),
+                Ok(result),
+                "{template:?}"
+            );
+        }
     }
 }

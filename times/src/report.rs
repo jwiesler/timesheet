@@ -32,7 +32,7 @@ impl<'a> Display for Output<'a> {
     }
 }
 
-fn output_time_delta(f: &mut Formatter, lhs: Minutes, rhs: Minutes) -> Result {
+fn output_time_delta(f: &mut Formatter<'_>, lhs: Minutes, rhs: Minutes) -> Result {
     if lhs < rhs {
         let delta = rhs - lhs;
         let duration = delta.into_duration();
