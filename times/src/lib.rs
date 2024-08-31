@@ -1,3 +1,5 @@
+#![deny(rust_2018_idioms, nonstandard_style)]
+#![warn(future_incompatible)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
@@ -124,6 +126,11 @@ pub enum Topic {
 pub struct Date(NaiveDate);
 
 impl Date {
+    #[must_use]
+    pub fn new(date: NaiveDate) -> Self {
+        Self(date)
+    }
+
     #[must_use]
     pub fn year(&self) -> i32 {
         self.0.year()

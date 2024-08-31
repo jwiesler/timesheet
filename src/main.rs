@@ -1,13 +1,17 @@
+#![deny(rust_2018_idioms, nonstandard_style)]
+#![warn(future_incompatible)]
 #![warn(clippy::pedantic)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
 
 use std::borrow::Cow;
 use std::fs::OpenOptions;
 use std::io::{stdout, BufReader, BufWriter, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use chrono::Datelike;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use fs_err::File;
 use thiserror::Error;
 
@@ -18,7 +22,28 @@ use times::parse::{from_stem, parse};
 struct Args {
     /// Input path timesheet
     #[clap(short, long)]
-    file: Option<String>,
+    file: Option<PathBuf>,
+}
+
+#[derive(ValueEnum, Copy, Clone)]
+pub enum TemplateName {
+    Empty,
+    TechDay,
+    Holiday,
+    Normal,
+    Ill,
+}
+
+impl From<TemplateName> for Template {
+    fn from(value: TemplateName) -> Self {
+        match value {
+            TemplateName::Empty => Template::Empty,
+            TemplateName::TechDay => Template::TechDay,
+            TemplateName::Holiday => Template::Holiday,
+            TemplateName::Normal => Template::Normal,
+            TemplateName::Ill => Template::Ill,
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -36,7 +61,7 @@ enum Cli {
         args: Args,
     },
     Add {
-        template: String,
+        template: TemplateName,
         #[clap(flatten)]
         args: Args,
         template_args: Vec<String>,
@@ -60,7 +85,7 @@ fn run(cli: &Cli) -> Result<(), Error> {
         Cli::Check { args, .. }
         | Cli::Report { args, .. }
         | Cli::Output { args, .. }
-        | Cli::Add { args, .. } => args.file.as_ref(),
+        | Cli::Add { args, .. } => args.file.as_deref(),
     };
     let path = path.map_or_else(
         || {
@@ -72,7 +97,7 @@ fn run(cli: &Cli) -> Result<(), Error> {
             cd.push(format!("{year}-{month:0>2}.tsh"));
             Cow::Owned(cd)
         },
-        |p| Cow::Borrowed(Path::new(p)),
+        Cow::Borrowed,
     );
     let path = path.as_ref();
     let stem = path
@@ -105,7 +130,7 @@ fn run(cli: &Cli) -> Result<(), Error> {
             template_args,
             ..
         } => {
-            let template = Template::by_name(template)?;
+            let template: Template = (*template).into();
             let date = days
                 .last()
                 .and_then(|d| d.date.value.following_day_in_month())
