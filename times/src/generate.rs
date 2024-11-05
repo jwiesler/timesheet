@@ -95,9 +95,10 @@ impl Template {
 
                 output
                     .header(date)
-                    .line("09:00 AA Ops Daily")
-                    .line("09:15 AA Inference Daily")
-                    .line_fmt(format_args!("09:45 AA {arg_0}"))
+                    .line_fmt(format_args!("09:00 AA {arg_0}"))
+                    .line("10:00 AA Ops Daily")
+                    .line("10:15 AA Inference Daily")
+                    .line_fmt(format_args!("10:30 AA {arg_0}"))
                     .line("12:30")
                     .line_fmt(format_args!("13:00 AA {arg_1}"))
                     .line("17:30");
