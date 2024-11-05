@@ -77,9 +77,10 @@ impl Template {
 
                 write_with(&mut output, |f| {
                     f.header(date)?;
-                    writeln!(f, "09:00 AA Ops Daily")?;
-                    writeln!(f, "09:15 AA Inference Daily")?;
-                    writeln!(f, "09:45 AA {arg_0}")?;
+                    writeln!(f, "09:00 AA {arg_0}")?;
+                    writeln!(f, "10:00 AA Ops Daily")?;
+                    writeln!(f, "10:15 AA Inference Daily")?;
+                    writeln!(f, "10:30 AA {arg_0}")?;
                     writeln!(f, "12:30")?;
                     writeln!(f, "13:00 AA {arg_1}")?;
                     writeln!(f, "17:30")
