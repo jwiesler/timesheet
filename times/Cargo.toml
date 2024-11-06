@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thiserror = "1.0.59"
+thiserror = "2.0.0"
 chrono = "0.4.38"
 anstyle = "1.0.7"
