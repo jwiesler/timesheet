@@ -25,7 +25,7 @@ trait FormatterEx {
     fn header(&mut self, date: Date) -> std::fmt::Result;
 }
 
-impl<'a> FormatterEx for Formatter<'a> {
+impl FormatterEx for Formatter<'_> {
     fn header(&mut self, date: Date) -> std::fmt::Result {
         writeln!(self, "\n* {date}")
     }

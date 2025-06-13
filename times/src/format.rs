@@ -9,13 +9,13 @@ pub trait Format {
     fn format(&self, f: &mut Formatter<'_>) -> Result;
 }
 
-impl<'a> Display for Output<'a> {
+impl Display for Output<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         self.0.format(f)
     }
 }
 
-impl<'a> Format for &'a [Day] {
+impl Format for &'_ [Day] {
     fn format(&self, f: &mut Formatter<'_>) -> Result {
         let mut first = true;
         for day in *self {
@@ -31,7 +31,7 @@ impl<'a> Format for &'a [Day] {
     }
 }
 
-impl<'a> Format for &'a Day {
+impl Format for &Day {
     fn format(&self, f: &mut Formatter<'_>) -> Result {
         writeln!(f, "* {}", self.date.value)?;
         self.entries.as_slice().format(f)?;

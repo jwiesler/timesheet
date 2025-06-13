@@ -26,7 +26,7 @@ pub trait Format {
     fn format(&self, f: &mut Formatter<'_>) -> Result;
 }
 
-impl<'a> Display for Output<'a> {
+impl Display for Output<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         self.0.format(f)
     }
@@ -54,7 +54,7 @@ fn output_time_delta(f: &mut Formatter<'_>, lhs: Minutes, rhs: Minutes) -> Resul
     }
 }
 
-impl<'a> Format for &'a [Day] {
+impl Format for &'_ [Day] {
     fn format(&self, f: &mut Formatter<'_>) -> Result {
         let mut first = true;
         let mut expected_min_work = Minutes::default();
@@ -116,7 +116,7 @@ impl Format for Entry {
     }
 }
 
-impl<'a> Format for &'a Day {
+impl Format for &'_ Day {
     fn format(&self, f: &mut Formatter<'_>) -> Result {
         write!(
             f,

@@ -84,7 +84,7 @@ impl FromStr for Topic {
 
         if s.is_empty() {
             Ok(Topic::Break)
-        } else if let Some((identifier, rest)) = s.split_once(|c: char| c.is_whitespace()) {
+        } else if let Some((identifier, rest)) = s.split_once(char::is_whitespace) {
             Ok(Topic::Project {
                 identifier: identifier.to_string(),
                 comment: Some(rest.trim_start().to_owned()),
@@ -106,12 +106,7 @@ impl FromStr for Entry {
         if s.is_empty() {
             Err(EntryError::MissingTime)
         } else {
-            let (time, rest) = if let Some((time, rest)) = s.split_once(|c: char| c.is_whitespace())
-            {
-                (time, rest)
-            } else {
-                (s, "")
-            };
+            let (time, rest) = s.split_once(char::is_whitespace).unwrap_or((s, ""));
             let time = time.parse().map_err(|_| EntryError::Time)?;
             let topic = rest.trim_start().parse().unwrap();
             Ok(Entry { time, topic })
@@ -192,9 +187,7 @@ pub fn parse(r: impl BufRead, month: Date) -> Result<Vec<Day>, Error> {
                 entries: Vec::new(),
             });
         } else {
-            let day = current_day
-                .as_mut()
-                .ok_or_else(|| Error::ExpectedDay(index))?;
+            let day = current_day.as_mut().ok_or(Error::ExpectedDay(index))?;
             match line.parse() {
                 Ok(entry) => {
                     day.entries.push(Positioned::new(index, entry));
