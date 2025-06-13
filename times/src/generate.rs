@@ -120,15 +120,15 @@ mod tests {
             (Template::Empty, vec![], "\n* Mo. 5.08.\n"),
             (Template::TechDay, vec![], "\n* Mo. 5.08.\n09:00 TNGFo Techday\n17:00\n"),
             (Template::Holiday, vec![], "\n* Mo. 5.08.\n09:00 Urlaub\n17:00\n"),
-            (Template::Normal, vec!["A".into()], "\n* Mo. 5.08.\n09:00 AA Ops Daily\n09:15 AA Inference Daily\n09:45 AA A\n12:30\n13:00 AA A\n17:30\n"),
-            (Template::Normal, vec!["A".into(), "B".into()], "\n* Mo. 5.08.\n09:00 AA Ops Daily\n09:15 AA Inference Daily\n09:45 AA A\n12:30\n13:00 AA B\n17:30\n"),
+            (Template::Normal, vec!["A".into()], "\n* Mo. 5.08.\n09:00 AA A\n10:00 AA Ops Daily\n10:15 AA Inference Daily\n10:30 AA A\n12:30\n13:00 AA A\n17:30\n"),
+            (Template::Normal, vec!["A".into(), "B".into()], "\n* Mo. 5.08.\n09:00 AA A\n10:00 AA Ops Daily\n10:15 AA Inference Daily\n10:30 AA A\n12:30\n13:00 AA B\n17:30\n"),
             (Template::Ill, vec![], "\n* Mo. 5.08.\n09:00 Krank\n17:00\n")
         ];
         for (template, args, result) in tests {
             assert_eq!(
                 template.execute(date, &args).as_deref(),
                 Ok(result),
-                "{template:?}"
+                "{template:?}{args:?}"
             );
         }
     }
