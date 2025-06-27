@@ -1,9 +1,8 @@
 use std::fmt::{Display, Formatter, Result};
-use std::ops::Add;
 
 use anstyle::{AnsiColor, Color, Style};
 
-use crate::convert::{AccumulatedTime, Day, Entry};
+use crate::convert::{Day, Entry, Month};
 use crate::{Minutes, Positioned};
 
 const DATE: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::BrightYellow)));
@@ -13,14 +12,7 @@ const POSITIVE: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::Green)
 const NEGATIVE: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::Red)));
 const ADDITIONS: Style = Style::new().fg_color(Some(Color::Ansi(AnsiColor::BrightBlack)));
 
-pub struct Output<'a>(pub &'a [Day]);
-
-impl<'a> Output<'a> {
-    #[must_use]
-    pub fn new(days: &'a [Day]) -> Self {
-        Self(days)
-    }
-}
+pub struct Output<'a>(pub &'a Month);
 
 pub trait Format {
     fn format(&self, f: &mut Formatter<'_>) -> Result;
@@ -54,15 +46,26 @@ fn output_time_delta(f: &mut Formatter<'_>, lhs: Minutes, rhs: Minutes) -> Resul
     }
 }
 
+impl Format for &'_ Month {
+    fn format(&self, f: &mut Formatter<'_>) -> Result {
+        self.days.as_slice().format(f)?;
+        let minutes = self.times.billable_time();
+        let duration = minutes.into_duration();
+        writeln!(f)?;
+        write!(f, "{}Total: {duration} (", ADDITIONS.render())?;
+        output_time_delta(f, minutes, self.expected_min_work)?;
+        writeln!(f, "{}){}", ADDITIONS.render(), ADDITIONS.render_reset())?;
+        Ok(())
+    }
+}
+
 impl Format for &'_ [Day] {
     fn format(&self, f: &mut Formatter<'_>) -> Result {
         let mut first = true;
-        let mut expected_min_work = Minutes::default();
         for day in *self {
             if day.entries.is_empty() {
                 continue;
             }
-            expected_min_work += day.expected_time();
             if first {
                 first = false;
             } else {
@@ -70,18 +73,6 @@ impl Format for &'_ [Day] {
             }
             day.format(f)?;
         }
-
-        let time = self
-            .iter()
-            .map(|d| d.times.clone())
-            .fold(AccumulatedTime::default(), AccumulatedTime::add);
-        let minutes = time.billable_time();
-        let duration = minutes.into_duration();
-        writeln!(f)?;
-        write!(f, "{}Total: {duration} (", ADDITIONS.render())?;
-        output_time_delta(f, minutes, expected_min_work)?;
-        writeln!(f, "{}){}", ADDITIONS.render(), ADDITIONS.render_reset())?;
-
         Ok(())
     }
 }

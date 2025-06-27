@@ -76,10 +76,9 @@ mod tests {
 
     use chrono::NaiveDate;
 
+    use super::*;
     use crate::parse::parse;
     use crate::Date;
-
-    use super::*;
 
     #[test]
     fn test_format() {

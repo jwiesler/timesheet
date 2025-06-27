@@ -132,8 +132,9 @@ fn write_with<F: for<'a> Fn(&mut Formatter<'a>) -> std::fmt::Result>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use chrono::NaiveDate;
+
+    use super::*;
 
     #[test]
     fn generate() {

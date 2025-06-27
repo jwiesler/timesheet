@@ -8,7 +8,8 @@ use std::fmt::{Display, Formatter};
 use std::iter::Sum;
 use std::ops::{Add, AddAssign, Sub};
 
-use chrono::{Datelike, NaiveDate, Weekday};
+pub use chrono::NaiveDate;
+use chrono::{Datelike, Weekday};
 
 pub mod convert;
 pub mod format;
@@ -122,13 +123,18 @@ pub enum Topic {
     },
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Ord, PartialOrd)]
 pub struct Date(NaiveDate);
 
 impl Date {
     #[must_use]
     pub fn new(date: NaiveDate) -> Self {
         Self(date)
+    }
+
+    #[must_use]
+    pub fn today() -> Self {
+        Self(chrono::offset::Local::now().date_naive())
     }
 
     #[must_use]
@@ -139,6 +145,11 @@ impl Date {
     #[must_use]
     pub fn month(&self) -> u32 {
         self.0.month()
+    }
+
+    #[must_use]
+    pub fn day(&self) -> u32 {
+        self.0.day()
     }
 
     #[must_use]
