@@ -43,6 +43,11 @@ impl Identifier {
     pub fn is_under_hours(&self) -> bool {
         self.0.starts_with("Ustd")
     }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
 }
 
 #[cfg_attr(test, derive(Default, Eq, PartialEq))]
@@ -64,10 +69,36 @@ pub struct Day {
 impl Day {
     #[must_use]
     pub fn expected_time(&self) -> Minutes {
-        if self.date.value.is_weekday() {
+        if self.date.value.is_weekday() && !self.entries.is_empty() {
             Minutes::from_hours(8)
         } else {
             Minutes::default()
+        }
+    }
+}
+
+pub struct Month {
+    pub days: Vec<Day>,
+    pub expected_min_work: Minutes,
+    pub times: AccumulatedTime,
+}
+
+impl Month {
+    pub fn new(days: Vec<Day>) -> Self {
+        let expected_min_work = days
+            .iter()
+            .filter(|d| !d.entries.is_empty())
+            .map(Day::expected_time)
+            .sum();
+
+        let time = days
+            .iter()
+            .map(|d| d.times.clone())
+            .fold(AccumulatedTime::default(), AccumulatedTime::add);
+        Self {
+            days,
+            expected_min_work,
+            times: time,
         }
     }
 }

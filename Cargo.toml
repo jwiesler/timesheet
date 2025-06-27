@@ -1,4 +1,4 @@
-workspace = { members = ["times"] }
+workspace = { members = [ "term","times"] }
 
 [package]
 name = "timesheet"

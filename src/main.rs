@@ -14,7 +14,7 @@ use chrono::Datelike;
 use clap::{Parser, ValueEnum};
 use fs_err::File;
 use thiserror::Error;
-
+use times::convert::Month;
 use times::generate::Template;
 use times::parse::{from_stem, parse};
 
@@ -107,24 +107,25 @@ fn run(cli: &Cli) -> Result<(), Error> {
         .expect("need a file with a name")
         .to_str()
         .unwrap();
-    let month = from_stem(stem).unwrap_or_else(|| {
+    let date = from_stem(stem).unwrap_or_else(|| {
         panic!("failed to parse month from input file stem {stem:?}, expected format YYYY-MM")
     });
     let file = File::open(path).map_err(Error::InputFile)?;
-    let days = parse(&mut BufReader::new(file), month)?;
+    let days = parse(&mut BufReader::new(file), date)?;
     let days = days
         .into_iter()
         .map(times::convert::Day::try_from)
         .collect::<Result<Vec<_>, _>>()?;
+    let month = Month::new(days);
 
     match cli {
         Cli::Check { .. } => {}
         Cli::Report { .. } => {
-            let output = times::report::Output(&days);
+            let output = times::report::Output(&month);
             write!(&mut stdout(), "{output}").expect("format output");
         }
         Cli::Output { .. } => {
-            let output = times::format::Output(&days);
+            let output = times::format::Output(&month.days);
             write!(&mut stdout(), "{output}").expect("format output");
         }
         Cli::Add {
@@ -133,10 +134,11 @@ fn run(cli: &Cli) -> Result<(), Error> {
             ..
         } => {
             let template: Template = (*template).into();
-            let date = days
+            let date = month
+                .days
                 .last()
                 .and_then(|d| d.date.value.following_day_in_month())
-                .unwrap_or(month)
+                .unwrap_or(date)
                 .next_weekday_in_month()
                 .expect("last day in the month");
             let rendered = template.execute(date, template_args)?;

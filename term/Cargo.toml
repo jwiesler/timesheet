@@ -1,0 +1,9 @@
+[package]
+name = "term"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+times = { path = "../times" }
+ratatui = "0.30.0-alpha.4"
+tui-input = "0.12.1"
