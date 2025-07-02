@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 use times::Date;
 use times::parse::{from_stem, parse};
 
+use crate::model::Model;
+
 pub struct Data {
     pub months: Vec<(Date, PathBuf)>,
 }
@@ -36,16 +38,13 @@ impl Data {
         Ok(Self { months })
     }
 
-    pub fn load_month(date: Date, path: &Path) -> std::io::Result<times::convert::Month> {
+    pub fn load_month(date: Date, path: &Path) -> std::io::Result<Model> {
         let file = File::open(path)?;
         let days = parse(&mut BufReader::new(file), date)
-            .map_err(|e| std::io::Error::other(format!("Error trying to read {path:?}: {}", e)))?;
-        let days = days
-            .into_iter()
-            .map(times::convert::Day::try_from)
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| std::io::Error::other(format!("Error trying to read {path:?}: {}", e)))?;
-        let month = times::convert::Month::new(days);
-        Ok(month)
+            .map_err(|e| std::io::Error::other(format!("Error trying to read {path:?}: {e}")))?;
+        let model = Model::new(days, path.to_path_buf()).map_err(|e| {
+            std::io::Error::other(format!("Timesheets under {path:?} are invalid: {e}"))
+        })?;
+        Ok(model)
     }
 }

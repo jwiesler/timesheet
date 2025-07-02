@@ -19,7 +19,7 @@ pub enum Error {
     AcrossTravelTime(usize),
 }
 
-#[cfg_attr(test, derive(Default, Eq, PartialEq))]
+#[cfg_attr(test, derive(Default, Clone, Eq, PartialEq))]
 pub struct Identifier(String);
 
 impl Display for Identifier {
@@ -29,6 +29,11 @@ impl Display for Identifier {
 }
 
 impl Identifier {
+    #[must_use]
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+
     #[must_use]
     pub fn is_tng(&self) -> bool {
         self.0.starts_with("TNG")

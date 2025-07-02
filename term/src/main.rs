@@ -1,5 +1,7 @@
 mod command;
 mod data;
+mod editor;
+mod model;
 mod month;
 mod style;
 
@@ -16,10 +18,15 @@ use times::{Date, Minutes, NaiveDate};
 
 use crate::command::Command;
 use crate::data::Data;
+use crate::editor::run_editor;
 use crate::month::Month;
 
 fn main() -> std::io::Result<()> {
-    let state = Data::from_dir("timesheets".into())?;
+    let arg = std::env::args_os().nth(1);
+    let dir = arg
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "timesheets".into());
+    let state = Data::from_dir(dir)?;
     let mut terminal = ratatui::init();
     let today = Date::today();
     let month = {
@@ -51,6 +58,7 @@ enum Focus {
 enum Control {
     Quit,
     Month(PathBuf, Date),
+    Edit,
 }
 
 struct App {
@@ -110,6 +118,11 @@ impl App {
                 Some(Control::Month(path, date)) => {
                     let month = Data::load_month(date, &path)?;
                     self.month = Month::new(month, date);
+                }
+                Some(Control::Edit) => {
+                    run_editor(terminal, self.month.path(), self.month.line())?;
+                    let month = Data::load_month(self.month.date(), self.month.path())?;
+                    self.month.reload(month);
                 }
             }
         }

@@ -116,7 +116,7 @@ impl Time {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Topic {
     Break,
     Project {
@@ -125,7 +125,7 @@ pub enum Topic {
     },
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Ord, PartialOrd)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Ord, PartialOrd, Hash)]
 pub struct Date(NaiveDate);
 
 impl Date {
@@ -200,13 +200,13 @@ impl Display for Date {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Entry {
     pub time: Time,
     pub topic: Topic,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Day {
     pub comments: Vec<String>,
     pub date: Positioned<Date>,

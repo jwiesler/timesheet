@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::ops::Not;
+use std::path::Path;
 
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{Event, KeyCode};
@@ -10,30 +12,78 @@ use ratatui::widgets::{Block, List, ListItem, ListState, Padding, StatefulWidget
 use times::Date;
 use times::convert::Day;
 
+use crate::model::Model;
 use crate::style::{BORDER, DATE, HIGHLIGHT, PROJECT, TIME};
-use crate::{View, output_time_delta};
+use crate::{Control, View, output_time_delta};
 
 pub struct Month {
     state: ListState,
     expanded: Vec<bool>,
-    month: times::convert::Month,
+    model: Model,
     date: Date,
 }
 
 impl Month {
-    pub fn new(month: times::convert::Month, date: Date) -> Self {
-        let state = ListState::default().with_selected(month.days.is_empty().not().then_some(0));
-        let days = month.days.len();
+    pub fn new(model: Model, date: Date) -> Self {
+        let state =
+            ListState::default().with_selected(model.month().days.is_empty().not().then_some(0));
+        let days = model.month().days.len();
         Self {
             state,
             expanded: vec![false; days],
-            month,
+            model,
             date,
         }
     }
 
+    pub(crate) fn reload(&mut self, model: Model) {
+        let selected = self.state.selected().unwrap_or_default();
+        let (day, start) = self.day_index_from_index(selected);
+        let offset = selected - start;
+        let selected_date = self.days()[day].date.value;
+        let expanded = self
+            .days()
+            .iter()
+            .zip(self.expanded.iter())
+            .map(|(day, expanded)| (day.date.value, *expanded))
+            .collect::<HashMap<_, _>>();
+        self.model = model;
+        self.expanded.resize(self.days().len(), false);
+        let mut list_offset = 0;
+        for (day_index, day) in self.model.month().days.iter().enumerate() {
+            if self.state.selected().is_none() && day.date.value >= selected_date {
+                let offset = offset.min(day.entries.len() + 1);
+                self.state.select(Some(list_offset + offset));
+            }
+            let expanded = expanded.get(&day.date.value).cloned().unwrap_or_default();
+            self.expanded[day_index] = expanded;
+            list_offset += len_of_entry(day, expanded);
+        }
+    }
+
+    pub(crate) fn path(&self) -> &Path {
+        self.model.path()
+    }
+
+    pub(crate) fn line(&self) -> u32 {
+        let selected = self.state.selected().unwrap_or_default();
+        let (day, start) = self.day_index_from_index(selected);
+        let day = &self.days()[day];
+        if selected == start {
+            day.date.line
+        } else {
+            day.entries[selected - start - 1].value.start.line
+        }
+        .try_into()
+        .unwrap()
+    }
+
     pub(crate) fn date(&self) -> Date {
         self.date
+    }
+
+    fn days(&self) -> &[Day] {
+        &self.model.month().days
     }
 
     fn render_day(day: &Day, expanded: bool) -> Vec<ListItem> {
@@ -73,7 +123,7 @@ impl Month {
 
     fn day_index_from_index(&self, index: usize) -> (usize, usize) {
         let mut running_index = 0;
-        let days = &self.month.days;
+        let days = self.days();
         for ((i, day), expanded) in days.iter().enumerate().zip(&self.expanded) {
             let start = running_index;
             let end = running_index + len_of_entry(day, *expanded);
@@ -86,7 +136,7 @@ impl Month {
     }
 
     fn start_of_day(&self, index: usize) -> usize {
-        self.month.days[..index]
+        self.days()[..index]
             .iter()
             .zip(&self.expanded)
             .map(|(d, expanded)| len_of_entry(d, *expanded))
@@ -95,16 +145,22 @@ impl Month {
 }
 
 fn len_of_entry(day: &Day, expanded: bool) -> usize {
-    expanded.then_some(day.entries.len()).unwrap_or_default() + 1
+    (if expanded { day.entries.len() } else { 0 }) + 1
 }
 
 impl View for Month {
     fn render(&mut self, area: Rect, buf: &mut Buffer) {
-        let rows = self.month.days.iter().enumerate().flat_map(|(i, day)| {
-            let expanded = self.expanded[i];
-            Self::render_day(day, expanded)
-        });
-        let billable_time = self.month.times.billable_time();
+        let rows = self
+            .model
+            .month()
+            .days
+            .iter()
+            .enumerate()
+            .flat_map(|(i, day)| {
+                let expanded = self.expanded[i];
+                Self::render_day(day, expanded)
+            });
+        let billable_time = self.model.month().times.billable_time();
         let title = Line::from(vec![
             Span::from(format!(
                 " Monat {:0>2}-{} ",
@@ -113,7 +169,7 @@ impl View for Month {
             ))
             .style(Style::new().fg(Color::White)),
             Span::from(format!("-> {} (", billable_time.into_duration())).style(Style::reset()),
-            output_time_delta(billable_time, self.month.expected_min_work),
+            output_time_delta(billable_time, self.model.month().expected_min_work),
             Span::from(") ").style(Style::reset()),
         ]);
 
@@ -122,15 +178,15 @@ impl View for Month {
             .border_style(BORDER)
             .padding(Padding::horizontal(1));
         let list_height = block.inner(area).height;
-        let table = List::new(rows).block(block).highlight_style(HIGHLIGHT);
+        let list = List::new(rows).block(block).highlight_style(HIGHLIGHT);
         *self.state.offset_mut() = self
             .state
             .offset()
-            .min(table.len().saturating_sub(usize::from(list_height)));
-        table.render(area, buf, &mut self.state);
+            .min(list.len().saturating_sub(usize::from(list_height)));
+        list.render(area, buf, &mut self.state);
     }
 
-    fn handle_event(&mut self, e: Event) -> Option<crate::Control> {
+    fn handle_event(&mut self, e: Event) -> Option<Control> {
         let Event::Key(e) = e else {
             return None;
         };
@@ -139,26 +195,10 @@ impl View for Month {
         }
         match e.code {
             KeyCode::Down => {
-                let last = self
-                    .month
-                    .days
-                    .iter()
-                    .zip(&self.expanded)
-                    .map(|(d, expanded)| len_of_entry(d, *expanded))
-                    .sum::<usize>()
-                    - 1;
-                if self.state.selected() == Some(last) {
-                    self.state.select_first();
-                } else {
-                    self.state.scroll_down_by(1);
-                }
+                self.state.scroll_down_by(1);
             }
             KeyCode::Up => {
-                if self.state.selected() == Some(0) {
-                    self.state.select_last();
-                } else {
-                    self.state.scroll_up_by(1);
-                }
+                self.state.scroll_up_by(1);
             }
             KeyCode::Left => {
                 if let Some(selected) = self.state.selected() {
@@ -179,7 +219,7 @@ impl View for Month {
                 if let Some(selected) = self.state.selected() {
                     let (day, start) = self.day_index_from_index(selected);
                     self.state.select(Some(
-                        start + len_of_entry(&self.month.days[day], self.expanded[day]),
+                        start + len_of_entry(&self.days()[day], self.expanded[day]),
                     ));
                 }
             }
@@ -187,12 +227,15 @@ impl View for Month {
                 if let Some(selected) = self.state.selected() {
                     let (day, start) = self.day_index_from_index(selected);
                     let index = if selected == start && day > 0 {
-                        start - len_of_entry(&self.month.days[day - 1], self.expanded[day - 1])
+                        start - len_of_entry(&self.days()[day - 1], self.expanded[day - 1])
                     } else {
                         start
                     };
                     self.state.select(Some(index));
                 }
+            }
+            KeyCode::Char('e') => {
+                return Some(Control::Edit);
             }
             _ => {}
         }
@@ -201,7 +244,7 @@ impl View for Month {
 
     fn command(&mut self, command: &str, _: &[&str]) {
         if let Ok(day) = command.parse::<u32>() {
-            let days = &self.month.days;
+            let days = &self.model.month().days;
             if days.is_empty() {
                 return;
             }
