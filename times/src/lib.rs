@@ -11,6 +11,8 @@ use std::ops::{Add, AddAssign, Sub};
 pub use chrono::NaiveDate;
 use chrono::{Datelike, Weekday};
 
+pub type String = ecow::EcoString;
+
 pub mod convert;
 pub mod format;
 pub mod generate;

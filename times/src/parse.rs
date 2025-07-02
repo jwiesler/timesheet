@@ -86,12 +86,12 @@ impl FromStr for Topic {
             Ok(Topic::Break)
         } else if let Some((identifier, rest)) = s.split_once(char::is_whitespace) {
             Ok(Topic::Project {
-                identifier: identifier.to_string(),
-                comment: Some(rest.trim_start().to_owned()),
+                identifier: identifier.into(),
+                comment: Some(rest.trim_start().into()),
             })
         } else {
             Ok(Topic::Project {
-                identifier: s.to_string(),
+                identifier: s.into(),
                 comment: None,
             })
         }
@@ -169,7 +169,7 @@ pub fn parse(r: impl BufRead, month: Date) -> Result<Vec<Day>, Error> {
             continue;
         }
         if let Some(comment) = line.strip_prefix('#') {
-            comments.push(comment.to_owned());
+            comments.push(comment.into());
         } else if let Some(line) = line.strip_prefix('*') {
             let last_day = current_day.take().map(|day| {
                 let date = day.date.value.0.day();
@@ -275,22 +275,22 @@ mod test {
         assert_eq!(
             "Test".parse(),
             Ok(Topic::Project {
-                identifier: "Test".to_owned(),
+                identifier: "Test".into(),
                 comment: None,
             })
         );
         assert_eq!(
             "Test    bla".parse(),
             Ok(Topic::Project {
-                identifier: "Test".to_owned(),
-                comment: Some("bla".to_owned()),
+                identifier: "Test".into(),
+                comment: Some("bla".into()),
             })
         );
         assert_eq!(
             "Test bla bla bla".parse(),
             Ok(Topic::Project {
-                identifier: "Test".to_owned(),
-                comment: Some("bla bla bla".to_owned()),
+                identifier: "Test".into(),
+                comment: Some("bla bla bla".into()),
             })
         );
         assert_eq!("".parse(), Ok(Topic::Break));
@@ -310,7 +310,7 @@ mod test {
             Ok(Entry {
                 time: Time::new(10, 2).unwrap(),
                 topic: Topic::Project {
-                    identifier: "Test".to_owned(),
+                    identifier: "Test".into(),
                     comment: None,
                 },
             })
@@ -320,8 +320,8 @@ mod test {
             Ok(Entry {
                 time: Time::new(10, 2).unwrap(),
                 topic: Topic::Project {
-                    identifier: "Test".to_owned(),
-                    comment: Some("bla bla bla".to_owned()),
+                    identifier: "Test".into(),
+                    comment: Some("bla bla bla".into()),
                 },
             })
         );

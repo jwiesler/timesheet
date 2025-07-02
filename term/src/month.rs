@@ -63,7 +63,7 @@ impl Month {
                 ];
                 if let Some(comment) = &entry.comment {
                     items.push(Span::from(" "));
-                    items.push(Span::from(comment));
+                    items.push(Span::from(comment.as_str()));
                 }
                 ListItem::new(Line::from(items))
             }));
@@ -126,7 +126,7 @@ impl View for Month {
         *self.state.offset_mut() = self
             .state
             .offset()
-            .min(table.len() - usize::from(list_height));
+            .min(table.len().saturating_sub(usize::from(list_height)));
         table.render(area, buf, &mut self.state);
     }
 
