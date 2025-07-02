@@ -422,6 +422,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ecow"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b92b481eb5d59fd8e80e92ff11d057d1ca8d144b2cd8c66cc8d5bd177a3c0dc5"
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1426,6 +1432,7 @@ version = "0.1.0"
 dependencies = [
  "anstyle",
  "chrono",
+ "ecow",
  "thiserror 2.0.0",
 ]
 

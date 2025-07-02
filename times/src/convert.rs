@@ -3,7 +3,7 @@ use std::ops::Add;
 
 use thiserror::Error;
 
-use crate::{Date, Minutes, Positioned, Time, Topic};
+use crate::{Date, Minutes, Positioned, String, Time, Topic};
 
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum Error {
@@ -347,7 +347,7 @@ mod test {
             start: Positioned::new(0, start.unwrap()),
             end: Positioned::new(0, end.unwrap()),
             duration: end.unwrap().elapsed(start.unwrap()).unwrap(),
-            identifier: Identifier(identifier.to_string()),
+            identifier: Identifier(identifier.into()),
             comment: None,
         }
     }
