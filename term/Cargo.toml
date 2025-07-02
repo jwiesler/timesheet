@@ -7,3 +7,4 @@ edition = "2024"
 times = { path = "../times" }
 ratatui = "0.30.0-alpha.4"
 tui-input = "0.12.1"
+editor-command = "1.0.0"
