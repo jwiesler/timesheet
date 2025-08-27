@@ -5,7 +5,10 @@ mod model;
 mod month;
 mod style;
 
-use std::path::PathBuf;
+use std::fs::OpenOptions;
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use ratatui::Frame;
 use ratatui::buffer::Buffer;
@@ -14,11 +17,13 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
+use times::generate::Template;
 use times::{Date, Minutes, NaiveDate};
 
 use crate::command::Command;
 use crate::data::Data;
 use crate::editor::run_editor;
+use crate::model::Model;
 use crate::month::Month;
 
 fn main() -> std::io::Result<()> {
@@ -31,8 +36,8 @@ fn main() -> std::io::Result<()> {
     let today = Date::today();
     let month = {
         let (date, path) = state.months.last().unwrap().clone();
-        let month = Data::load_month(date, &path)?;
-        Month::new(month, date)
+        let month = Model::load(date, path)?;
+        Month::new(month)
     };
     let result = App::new(state, today, month).run(&mut terminal);
     ratatui::restore();
@@ -57,7 +62,7 @@ enum Focus {
 #[must_use]
 enum Control {
     Quit,
-    Month(PathBuf, Date),
+    Month(Date, Rc<PathBuf>),
     Edit,
 }
 
@@ -80,6 +85,12 @@ impl App {
             "month first",
             "expand",
             "collapse",
+            "add empty",
+            "add tech-day",
+            "add holiday",
+            "add normal",
+            "add ill",
+            "add tng-weekly",
         ]);
         Self {
             month,
@@ -90,7 +101,7 @@ impl App {
         }
     }
 
-    fn find_month(&self, month: u32, year: i32) -> Option<&(Date, PathBuf)> {
+    fn find_month(&self, month: u32, year: i32) -> Option<&(Date, Rc<PathBuf>)> {
         let needle = Date::new(NaiveDate::from_ymd_opt(year, month, 1)?);
         self.data
             .months
@@ -115,14 +126,14 @@ impl App {
             match self.handle_event(event::read()?) {
                 None => {}
                 Some(Control::Quit) => break,
-                Some(Control::Month(path, date)) => {
-                    let month = Data::load_month(date, &path)?;
-                    self.month = Month::new(month, date);
+                Some(Control::Month(date, path)) => {
+                    let model = Model::load(date, path)?;
+                    self.month = Month::new(model);
                 }
                 Some(Control::Edit) => {
                     run_editor(terminal, self.month.path(), self.month.line())?;
-                    let month = Data::load_month(self.month.date(), self.month.path())?;
-                    self.month.reload(month);
+                    let model = Model::load(self.month.date(), self.month.path().clone())?;
+                    self.month.reload(model);
                 }
             }
         }
@@ -143,13 +154,12 @@ impl App {
     }
 
     fn handle_event(&mut self, event: Event) -> Option<Control> {
-        if let Event::Key(event) = event {
-            if event.is_press()
-                && event.code == KeyCode::Char('c')
-                && event.modifiers == KeyModifiers::CONTROL
-            {
-                return Some(Control::Quit);
-            }
+        if let Event::Key(event) = event
+            && event.is_press()
+            && event.code == KeyCode::Char('c')
+            && event.modifiers == KeyModifiers::CONTROL
+        {
+            return Some(Control::Quit);
         }
         match self.focus {
             Focus::Input => match self.command.handle_event(event)? {
@@ -166,11 +176,12 @@ impl App {
                 }
             },
             Focus::View => {
-                if let Event::Key(event) = event {
-                    if event.code == KeyCode::Char(':') && event.is_press() {
-                        self.focus = Focus::Input;
-                        return None;
-                    }
+                if let Event::Key(event) = event
+                    && event.code == KeyCode::Char(':')
+                    && event.is_press()
+                {
+                    self.focus = Focus::Input;
+                    return None;
                 }
                 return self.month.handle_event(event);
             }
@@ -205,7 +216,35 @@ impl App {
                     }
                     _ => return None,
                 };
-                Some(Control::Month(path.clone(), *date))
+                Some(Control::Month(*date, path.clone()))
+            }
+            "add" => {
+                if let [template, args @ ..] = args {
+                    let template = match *template {
+                        "empty" => Template::Empty,
+                        "tech-day" => Template::TechDay,
+                        "holiday" => Template::Holiday,
+                        "normal" => Template::Normal,
+                        "ill" => Template::Ill,
+                        "tng-weekly" => Template::TNGWeekly,
+                        _ => return None,
+                    };
+                    let date = self
+                        .month
+                        .days()
+                        .last()
+                        .and_then(|d| d.date.value.following_day_in_month())
+                        .unwrap_or(self.month.date())
+                        .next_weekday_in_month()
+                        .expect("last day in the month");
+                    let Ok(rendered) = template.execute(date, args) else {
+                        return None;
+                    };
+                    append_to_file(self.month.path(), &rendered).unwrap();
+                    let model = Model::load(self.month.date(), self.month.path().clone()).unwrap();
+                    self.month.reload(model);
+                }
+                None
             }
             _ => {
                 self.month.command(command, args);
@@ -213,6 +252,11 @@ impl App {
             }
         }
     }
+}
+
+fn append_to_file(path: &Path, text: &str) -> Result<(), std::io::Error> {
+    let file = OpenOptions::new().append(true).open(path)?;
+    BufWriter::new(file).write_all(text.as_bytes())
 }
 
 fn output_time_delta(lhs: Minutes, rhs: Minutes) -> Span<'static> {

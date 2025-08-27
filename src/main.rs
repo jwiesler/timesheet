@@ -141,7 +141,8 @@ fn run(cli: &Cli) -> Result<(), Error> {
                 .unwrap_or(date)
                 .next_weekday_in_month()
                 .expect("last day in the month");
-            let rendered = template.execute(date, template_args)?;
+            let template_args = template_args.iter().map(String::as_str).collect::<Vec<_>>();
+            let rendered = template.execute(date, &template_args)?;
             println!("{}", indent(&rendered));
             append_to_file(path, &rendered).map_err(Error::InputFile)?;
         }
