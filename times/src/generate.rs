@@ -41,7 +41,7 @@ impl Template {
         })
     }
 
-    pub fn execute(&self, date: Date, args: &[String]) -> Result<String, Error> {
+    pub fn execute(&self, date: Date, args: &[&str]) -> Result<String, Error> {
         let mut output = String::new();
 
         match self {
@@ -143,9 +143,9 @@ mod tests {
             (Template::Empty, vec![], "\n* Mo. 5.08.\n"),
             (Template::TechDay, vec![], "\n* Mo. 5.08.\n09:00 TNGFo Techday\n17:00\n"),
             (Template::Holiday, vec![], "\n* Mo. 5.08.\n09:00 Urlaub\n17:00\n"),
-            (Template::TNGWeekly, vec!["A".into()], "\n* Mo. 5.08.\n09:00 AA A\n10:00 AA Ops Daily\n10:15 AA Inference Daily\n10:30 AANB TNG Weekly\n10:36 AA TNG Weekly\n11:00 AA A\n12:30\n13:00 AA A\n17:30\n"),
-            (Template::Normal, vec!["A".into()], "\n* Mo. 5.08.\n09:00 AA A\n10:00 AA Ops Daily\n10:15 AA Inference Daily\n10:30 AA A\n12:30\n13:00 AA A\n17:30\n"),
-            (Template::Normal, vec!["A".into(), "B".into()], "\n* Mo. 5.08.\n09:00 AA A\n10:00 AA Ops Daily\n10:15 AA Inference Daily\n10:30 AA A\n12:30\n13:00 AA B\n17:30\n"),
+            (Template::TNGWeekly, vec!["A"], "\n* Mo. 5.08.\n09:00 AA A\n10:00 AA Ops Daily\n10:15 AA Inference Daily\n10:30 AANB TNG Weekly\n10:36 AA TNG Weekly\n11:00 AA A\n12:30\n13:00 AA A\n17:30\n"),
+            (Template::Normal, vec!["A"], "\n* Mo. 5.08.\n09:00 AA A\n10:00 AA Ops Daily\n10:15 AA Inference Daily\n10:30 AA A\n12:30\n13:00 AA A\n17:30\n"),
+            (Template::Normal, vec!["A", "B"], "\n* Mo. 5.08.\n09:00 AA A\n10:00 AA Ops Daily\n10:15 AA Inference Daily\n10:30 AA A\n12:30\n13:00 AA B\n17:30\n"),
             (Template::Ill, vec![], "\n* Mo. 5.08.\n09:00 Krank\n17:00\n")
         ];
         for (template, args, result) in tests {

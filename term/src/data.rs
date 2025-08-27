@@ -1,15 +1,12 @@
 use std::ffi::OsStr;
-use std::fs::File;
-use std::io::BufReader;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::rc::Rc;
 
 use times::Date;
-use times::parse::{from_stem, parse};
-
-use crate::model::Model;
+use times::parse::from_stem;
 
 pub struct Data {
-    pub months: Vec<(Date, PathBuf)>,
+    pub months: Vec<(Date, Rc<PathBuf>)>,
 }
 
 impl Data {
@@ -32,19 +29,9 @@ impl Data {
                 )
             });
 
-            months.push((date, path));
+            months.push((date, path.into()));
         }
         months.sort_unstable_by_key(|(date, _)| *date);
         Ok(Self { months })
-    }
-
-    pub fn load_month(date: Date, path: &Path) -> std::io::Result<Model> {
-        let file = File::open(path)?;
-        let days = parse(&mut BufReader::new(file), date)
-            .map_err(|e| std::io::Error::other(format!("Error trying to read {path:?}: {e}")))?;
-        let model = Model::new(days, path.to_path_buf()).map_err(|e| {
-            std::io::Error::other(format!("Timesheets under {path:?} are invalid: {e}"))
-        })?;
-        Ok(model)
     }
 }

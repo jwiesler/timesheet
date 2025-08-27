@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Not;
-use std::path::Path;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{Event, KeyCode};
@@ -20,11 +21,10 @@ pub struct Month {
     state: ListState,
     expanded: Vec<bool>,
     model: Model,
-    date: Date,
 }
 
 impl Month {
-    pub fn new(model: Model, date: Date) -> Self {
+    pub fn new(model: Model) -> Self {
         let state =
             ListState::default().with_selected(model.month().days.is_empty().not().then_some(0));
         let days = model.month().days.len();
@@ -32,7 +32,6 @@ impl Month {
             state,
             expanded: vec![false; days],
             model,
-            date,
         }
     }
 
@@ -61,7 +60,7 @@ impl Month {
         }
     }
 
-    pub(crate) fn path(&self) -> &Path {
+    pub(crate) fn path(&self) -> &Rc<PathBuf> {
         self.model.path()
     }
 
@@ -79,14 +78,14 @@ impl Month {
     }
 
     pub(crate) fn date(&self) -> Date {
-        self.date
+        self.model.date()
     }
 
-    fn days(&self) -> &[Day] {
+    pub(crate) fn days(&self) -> &[Day] {
         &self.model.month().days
     }
 
-    fn render_day(day: &Day, expanded: bool) -> Vec<ListItem> {
+    fn render_day(day: &Day, expanded: bool) -> Vec<ListItem<'_>> {
         let expected = day.expected_time();
         let date = day.date.value.to_string();
 
@@ -164,8 +163,8 @@ impl View for Month {
         let title = Line::from(vec![
             Span::from(format!(
                 " Monat {:0>2}-{} ",
-                self.date.month(),
-                self.date.year()
+                self.date().month(),
+                self.date().year()
             ))
             .style(Style::new().fg(Color::White)),
             Span::from(format!("-> {} (", billable_time.into_duration())).style(Style::reset()),

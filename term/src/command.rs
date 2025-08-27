@@ -110,20 +110,21 @@ impl Command {
                     return None;
                 }
                 KeyCode::Down => {
-                    if !self.history.is_empty() && key_event.is_press() {
-                        if let Some(position) = self.history_position {
-                            let position = (position + 1).min(self.history.len() - 1);
-                            self.set_history(position);
-                        }
+                    if !self.history.is_empty()
+                        && key_event.is_press()
+                        && let Some(position) = self.history_position
+                    {
+                        let position = (position + 1).min(self.history.len() - 1);
+                        self.set_history(position);
                     }
                     return None;
                 }
                 KeyCode::Right => {
-                    if key_event.is_press() {
-                        if let Some(completion) = self.completion {
-                            self.set_value(completion.into());
-                            return None;
-                        }
+                    if key_event.is_press()
+                        && let Some(completion) = self.completion
+                    {
+                        self.set_value(completion.into());
+                        return None;
                     }
                 }
                 KeyCode::Enter => {
@@ -148,11 +149,11 @@ impl Command {
             }
         }
 
-        if let Some(changed) = self.input.handle_event(&event) {
-            if changed.value {
-                self.history_position = None;
-                self.refresh_completion();
-            }
+        if let Some(changed) = self.input.handle_event(&event)
+            && changed.value
+        {
+            self.history_position = None;
+            self.refresh_completion();
         }
         None
     }
