@@ -1,5 +1,5 @@
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use times::Date;
@@ -10,7 +10,7 @@ pub struct Data {
 }
 
 impl Data {
-    pub fn from_dir(path: PathBuf) -> std::io::Result<Self> {
+    pub fn from_dir(path: &Path) -> std::io::Result<Self> {
         let mut months = Vec::new();
         for file in path.read_dir()? {
             let file = file?;

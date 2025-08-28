@@ -13,9 +13,9 @@ use ratatui::widgets::{Block, List, ListItem, ListState, Padding, StatefulWidget
 use times::Date;
 use times::convert::Day;
 
-use crate::model::Model;
-use crate::style::{BORDER, DATE, HIGHLIGHT, PROJECT, TIME};
-use crate::{Control, View, output_time_delta};
+use crate::term::model::Model;
+use crate::term::style::{BORDER, DATE, HIGHLIGHT, PROJECT, TIME};
+use crate::term::{Control, View, output_time_delta};
 
 pub struct Month {
     state: ListState,
@@ -54,7 +54,7 @@ impl Month {
                 let offset = offset.min(day.entries.len() + 1);
                 self.state.select(Some(list_offset + offset));
             }
-            let expanded = expanded.get(&day.date.value).cloned().unwrap_or_default();
+            let expanded = expanded.get(&day.date.value).copied().unwrap_or_default();
             self.expanded[day_index] = expanded;
             list_offset += len_of_entry(day, expanded);
         }
