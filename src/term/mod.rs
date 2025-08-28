@@ -20,22 +20,24 @@ use ratatui::text::Span;
 use times::generate::Template;
 use times::{Date, Minutes, NaiveDate};
 
-use crate::command::Command;
-use crate::data::Data;
-use crate::editor::run_editor;
-use crate::model::Model;
-use crate::month::Month;
+use crate::term::command::Command;
+use crate::term::data::Data;
+use crate::term::editor::run_editor;
+use crate::term::model::Model;
+use crate::term::month::Month;
 
-fn main() -> std::io::Result<()> {
-    let arg = std::env::args_os().nth(1);
-    let dir = arg
-        .map(PathBuf::from)
-        .unwrap_or_else(|| "timesheets".into());
-    let state = Data::from_dir(dir)?;
+pub fn run_term(path: &Path) -> std::io::Result<()> {
+    let state = Data::from_dir(path.parent().unwrap())?;
     let mut terminal = ratatui::init();
     let today = Date::today();
     let month = {
-        let (date, path) = state.months.last().unwrap().clone();
+        let (date, path) = state
+            .months
+            .iter()
+            .find(|(_, p)| p.as_path() == path)
+            .or(state.months.last())
+            .unwrap()
+            .clone();
         let month = Model::load(date, path)?;
         Month::new(month)
     };
@@ -60,7 +62,7 @@ enum Focus {
 }
 
 #[must_use]
-enum Control {
+pub(crate) enum Control {
     Quit,
     Month(Date, Rc<PathBuf>),
     Edit,
@@ -85,10 +87,10 @@ impl App {
             "month first",
             "expand",
             "collapse",
-            "add empty",
+            "add normal",
             "add tech-day",
             "add holiday",
-            "add normal",
+            "add empty",
             "add ill",
             "add tng-weekly",
         ]);
@@ -140,7 +142,7 @@ impl App {
         Ok(())
     }
 
-    fn draw(&mut self, frame: &mut Frame) {
+    fn draw(&mut self, frame: &mut Frame<'_>) {
         let view_area = if let Focus::Input = self.focus {
             let [input_area, rest] =
                 Layout::vertical([Constraint::Length(3), Constraint::Min(1)]).areas(frame.area());
@@ -162,7 +164,7 @@ impl App {
             return Some(Control::Quit);
         }
         match self.focus {
-            Focus::Input => match self.command.handle_event(event)? {
+            Focus::Input => match self.command.handle_event(&event)? {
                 command::Control::Command(command) => {
                     self.focus = Focus::View;
                     let mut iter = command.split_whitespace();

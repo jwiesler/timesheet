@@ -33,7 +33,7 @@ impl Command {
         }
     }
 
-    pub fn draw(&mut self, area: Rect, frame: &mut Frame) {
+    pub fn draw(&mut self, area: Rect, frame: &mut Frame<'_>) {
         let width = area.width.max(3) - 3;
         let scroll = self.input.visual_scroll(width as usize);
         let mut line = vec![Span::from(":"), Span::from(self.input.value())];
@@ -44,7 +44,7 @@ impl Command {
             line.push(Span::from(completion).style(Color::DarkGray));
         }
         let input = Paragraph::new(Line::from(line))
-            .scroll((0, scroll as u16))
+            .scroll((0, u16::try_from(scroll).unwrap()))
             .style(Color::Yellow)
             .block(Block::bordered());
         input.render(area, frame.buffer_mut());
@@ -52,7 +52,7 @@ impl Command {
         // Ratatui hides the cursor unless it's explicitly set. Position the  cursor past the
         // end of the input text and one line down from the border to the input line
         let x = self.input.visual_cursor().max(scroll) - scroll + 2;
-        frame.set_cursor_position((area.x + x as u16, area.y + 1));
+        frame.set_cursor_position((area.x + u16::try_from(x).unwrap(), area.y + 1));
     }
 
     pub fn set_completions(&mut self, completions: &'static [&'static str]) {
@@ -78,7 +78,7 @@ impl Command {
                 .completions
                 .iter()
                 .find(|c| c.starts_with(self.input.value()) && c.len() != self.input.value().len())
-                .cloned();
+                .copied();
         }
     }
 
@@ -89,7 +89,7 @@ impl Command {
         value
     }
 
-    pub fn handle_event(&mut self, event: Event) -> Option<Control> {
+    pub fn handle_event(&mut self, event: &Event) -> Option<Control> {
         if let Event::Key(key_event) = event {
             match key_event.code {
                 KeyCode::Esc => {
@@ -149,7 +149,7 @@ impl Command {
             }
         }
 
-        if let Some(changed) = self.input.handle_event(&event)
+        if let Some(changed) = self.input.handle_event(event)
             && changed.value
         {
             self.history_position = None;

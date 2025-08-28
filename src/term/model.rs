@@ -17,9 +17,9 @@ impl Model {
     pub fn load(date: Date, path: Rc<PathBuf>) -> std::io::Result<Model> {
         let file = File::open(path.as_path())?;
         let days = parse(&mut BufReader::new(file), date)
-            .map_err(|e| std::io::Error::other(format!("Error trying to read {path:?}: {}", e)))?;
-        let model = Model::new(date, days, path.clone()).map_err(|e| {
-            std::io::Error::other(format!("Timesheets under {path:?} are invalid: {}", e))
+            .map_err(|e| std::io::Error::other(format!("Error trying to read {path:?}: {e}")))?;
+        let model = Model::new(date, days, path.clone()).map_err(move |e| {
+            std::io::Error::other(format!("Timesheets under {path:?} are invalid: {e}"))
         })?;
         Ok(model)
     }
