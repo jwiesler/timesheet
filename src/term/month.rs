@@ -10,12 +10,12 @@ use ratatui::prelude::Line;
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, List, ListItem, ListState, Padding, StatefulWidget};
-use times::Date;
 use times::convert::Day;
+use times::Date;
 
 use crate::term::model::Model;
 use crate::term::style::{BORDER, DATE, HIGHLIGHT, PROJECT, TIME};
-use crate::term::{Control, View, output_time_delta};
+use crate::term::{output_time_delta, Control, View};
 
 pub struct Month {
     state: ListState,
@@ -37,7 +37,12 @@ impl Month {
 
     pub(crate) fn reload(&mut self, model: Model) {
         let selected = self.state.selected().unwrap_or_default();
-        let (day, start) = self.day_index_from_index(selected);
+        let Some((day, start)) = self.day_index_from_index(selected) else {
+            self.model = model;
+            self.expanded.resize(self.days().len(), false);
+            self.state.select(Some(0));
+            return;
+        };
         let offset = selected - start;
         let selected_date = self.days()[day].date.value;
         let expanded = self
@@ -66,7 +71,9 @@ impl Month {
 
     pub(crate) fn line(&self) -> u32 {
         let selected = self.state.selected().unwrap_or_default();
-        let (day, start) = self.day_index_from_index(selected);
+        let Some((day, start)) = self.day_index_from_index(selected) else {
+            return 0;
+        };
         let day = &self.days()[day];
         if selected == start {
             day.date.line
@@ -120,7 +127,7 @@ impl Month {
         lines
     }
 
-    fn day_index_from_index(&self, index: usize) -> (usize, usize) {
+    fn day_index_from_index(&self, index: usize) -> Option<(usize, usize)> {
         let mut running_index = 0;
         let days = self.days();
         for ((i, day), expanded) in days.iter().enumerate().zip(&self.expanded) {
@@ -128,10 +135,10 @@ impl Month {
             let end = running_index + len_of_entry(day, *expanded);
             running_index = end;
             if (start..end).contains(&index) {
-                return (i, start);
+                return Some((i, start));
             }
         }
-        (0, 0)
+        None
     }
 
     fn start_of_day(&self, index: usize) -> usize {
@@ -201,22 +208,23 @@ impl View for Month {
             }
             KeyCode::Left => {
                 if let Some(selected) = self.state.selected() {
-                    let (day, start) = self.day_index_from_index(selected);
+                    let (day, start) = self.day_index_from_index(selected).unwrap_or_default();
                     self.expanded[day] = false;
                     self.state.select(Some(start));
                 }
             }
             KeyCode::Right => {
                 if let Some(selected) = self.state.selected() {
-                    let (day, _) = self.day_index_from_index(selected);
+                    let (day, _) = self.day_index_from_index(selected).unwrap_or_default();
                     self.expanded[day] = true;
                 }
             }
             KeyCode::Home | KeyCode::Char('g') => self.state.select_first(),
             KeyCode::End | KeyCode::Char('G') => self.state.select_last(),
             KeyCode::Char('n') => {
-                if let Some(selected) = self.state.selected() {
-                    let (day, start) = self.day_index_from_index(selected);
+                if let Some(selected) = self.state.selected()
+                    && let Some((day, start)) = self.day_index_from_index(selected)
+                {
                     self.state.select(Some(
                         start + len_of_entry(&self.days()[day], self.expanded[day]),
                     ));
@@ -224,7 +232,7 @@ impl View for Month {
             }
             KeyCode::Char('N') => {
                 if let Some(selected) = self.state.selected() {
-                    let (day, start) = self.day_index_from_index(selected);
+                    let (day, start) = self.day_index_from_index(selected).unwrap_or_default();
                     let index = if selected == start && day > 0 {
                         start - len_of_entry(&self.days()[day - 1], self.expanded[day - 1])
                     } else {
@@ -260,7 +268,7 @@ impl View for Month {
         match command {
             "collapse" | "c" => {
                 let selected = self.state.selected().unwrap();
-                let (day, _) = self.day_index_from_index(selected);
+                let (day, _) = self.day_index_from_index(selected).unwrap_or_default();
                 self.expanded.fill(false);
                 let new_day_start = self.start_of_day(day);
                 self.state.select(Some(new_day_start));
@@ -268,7 +276,7 @@ impl View for Month {
             }
             "expand" | "e" => {
                 let selected = self.state.selected().unwrap();
-                let (day, start) = self.day_index_from_index(selected);
+                let (day, start) = self.day_index_from_index(selected).unwrap_or_default();
                 let day_offset = selected - start;
                 self.expanded.fill(true);
                 let new_day_start = self.start_of_day(day);
