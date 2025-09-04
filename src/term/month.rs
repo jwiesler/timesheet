@@ -10,12 +10,14 @@ use ratatui::prelude::Line;
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, List, ListItem, ListState, Padding, StatefulWidget};
-use times::convert::Day;
 use times::Date;
+use times::convert::Day;
 
 use crate::term::model::Model;
 use crate::term::style::{BORDER, DATE, HIGHLIGHT, PROJECT, TIME};
-use crate::term::{output_time_delta, Control, View};
+use crate::term::{Control, UnknownCommand, View, output_time_delta};
+
+const DEFAULT_EXPANSION_STATE: bool = true;
 
 pub struct Month {
     state: ListState,
@@ -30,7 +32,7 @@ impl Month {
         let days = model.month().days.len();
         Self {
             state,
-            expanded: vec![false; days],
+            expanded: vec![DEFAULT_EXPANSION_STATE; days],
             model,
         }
     }
@@ -39,7 +41,8 @@ impl Month {
         let selected = self.state.selected().unwrap_or_default();
         let Some((day, start)) = self.day_index_from_index(selected) else {
             self.model = model;
-            self.expanded.resize(self.days().len(), false);
+            self.expanded
+                .resize(self.days().len(), DEFAULT_EXPANSION_STATE);
             self.state.select(Some(0));
             return;
         };
@@ -52,16 +55,18 @@ impl Month {
             .map(|(day, expanded)| (day.date.value, *expanded))
             .collect::<HashMap<_, _>>();
         self.model = model;
-        self.expanded.resize(self.days().len(), false);
+        self.expanded
+            .resize(self.days().len(), DEFAULT_EXPANSION_STATE);
         let mut list_offset = 0;
         for (day_index, day) in self.model.month().days.iter().enumerate() {
             if self.state.selected().is_none() && day.date.value >= selected_date {
                 let offset = offset.min(day.entries.len() + 1);
                 self.state.select(Some(list_offset + offset));
             }
-            let expanded = expanded.get(&day.date.value).copied().unwrap_or_default();
-            self.expanded[day_index] = expanded;
-            list_offset += len_of_entry(day, expanded);
+            if let Some(expanded) = expanded.get(&day.date.value).copied() {
+                self.expanded[day_index] = expanded;
+            }
+            list_offset += len_of_entry(day, self.expanded[day_index]);
         }
     }
 
@@ -147,6 +152,10 @@ impl Month {
             .zip(&self.expanded)
             .map(|(d, expanded)| len_of_entry(d, *expanded))
             .sum::<usize>()
+    }
+
+    pub fn select_last(&mut self) {
+        self.state.select_last();
     }
 }
 
@@ -249,11 +258,11 @@ impl View for Month {
         None
     }
 
-    fn command(&mut self, command: &str, _: &[&str]) {
+    fn command(&mut self, command: &str, _: &[&str]) -> Result<(), UnknownCommand> {
         if let Ok(day) = command.parse::<u32>() {
             let days = &self.model.month().days;
             if days.is_empty() {
-                return;
+                return Ok(());
             }
             let index = days
                 .iter()
@@ -263,7 +272,7 @@ impl View for Month {
                 .sum::<usize>();
             self.state.select(Some(index));
             *self.state.offset_mut() = index;
-            return;
+            return Ok(());
         }
         match command {
             "collapse" | "c" => {
@@ -283,7 +292,8 @@ impl View for Month {
                 self.state.select(Some(new_day_start + day_offset));
                 *self.state.offset_mut() = new_day_start;
             }
-            _ => {}
+            _ => return Err(UnknownCommand),
         }
+        Ok(())
     }
 }
