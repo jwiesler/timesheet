@@ -16,5 +16,5 @@ thiserror = "2.0.0"
 chrono = "0.4.38"
 
 ratatui = { version = "0.30.0-alpha.4" }
-tui-input = "0.12.1"
+tui-input = "0.14.0"
 editor-command = "1.0.0"
