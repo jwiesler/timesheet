@@ -281,7 +281,6 @@ impl App {
                     "holiday" => Template::Holiday,
                     "normal" => Template::Normal,
                     "ill" => Template::Ill,
-                    "tng-weekly" => Template::TNGWeekly,
                     _ => {
                         return Err(
                             format!("Unknown template arg to `add`: {template_name}").into()
