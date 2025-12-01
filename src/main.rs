@@ -36,7 +36,6 @@ pub enum TemplateName {
     Holiday,
     Normal,
     Ill,
-    TNGWeekly,
 }
 
 impl From<TemplateName> for Template {
@@ -47,7 +46,6 @@ impl From<TemplateName> for Template {
             TemplateName::Holiday => Template::Holiday,
             TemplateName::Normal => Template::Normal,
             TemplateName::Ill => Template::Ill,
-            TemplateName::TNGWeekly => Template::TNGWeekly,
         }
     }
 }
