@@ -157,7 +157,7 @@ fn main() -> ExitCode {
     };
     let path = path.map_or_else(
         || {
-            let mut cd = std::env::current_dir().unwrap();
+            let mut cd = std::env::home_dir().unwrap();
             cd.push("timesheets");
             let now = chrono::offset::Local::now();
             let year = now.year();

@@ -19,6 +19,7 @@ pub enum Template {
     Holiday,
     Normal,
     Ill,
+    Full,
 }
 
 trait FormatterEx {
@@ -67,6 +68,12 @@ impl Template {
                     return Err(Error::Argc(0, args.len()));
                 }
                 Self::full_day(&mut output, date, "Krank").unwrap();
+            }
+            Template::Full => {
+                let [arg] = args else {
+                    return Err(Error::Argc(1, args.len()));
+                };
+                Self::full_day(&mut output, date, arg).unwrap();
             }
             Template::Normal => {
                 if args.is_empty() || 2 < args.len() {
