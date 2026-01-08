@@ -75,7 +75,7 @@ impl Day {
     #[must_use]
     pub fn expected_time(&self) -> Minutes {
         if self.date.value.is_weekday() && !self.entries.is_empty() {
-            Minutes::from_hours(8)
+            Minutes(Minutes::from_hours(36).into_inner() / 5)
         } else {
             Minutes::default()
         }
