@@ -117,6 +117,7 @@ impl App {
             "add holiday",
             "add empty",
             "add ill",
+            "add timeoff",
         ]);
         Self {
             month,
@@ -280,6 +281,7 @@ impl App {
                     "normal" => Template::Normal,
                     "ill" => Template::Ill,
                     "full" => Template::Full,
+                    "timeoff" => Template::TimeOff,
                     _ => {
                         return Err(
                             format!("Unknown template arg to `add`: {template_name}").into()

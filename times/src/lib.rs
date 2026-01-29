@@ -5,11 +5,11 @@
 #![allow(clippy::missing_panics_doc)]
 
 use std::fmt::{Display, Formatter};
-use std::iter::Sum;
-use std::ops::{Add, AddAssign, Sub};
 
 pub use chrono::NaiveDate;
 use chrono::{Datelike, Weekday};
+use derive_more::with_trait::{Add, AddAssign};
+use derive_more::{From, Sub, Sum};
 
 pub type String = ecow::EcoString;
 
@@ -19,7 +19,12 @@ pub mod generate;
 pub mod parse;
 pub mod report;
 
-#[derive(Debug, Default, Eq, PartialEq, Copy, Clone, Ord, PartialOrd)]
+const WORK_TIME_PER_WEEK: Minutes = Minutes(36);
+pub const WORK_TIME_PER_DAY: Minutes = Minutes((WORK_TIME_PER_WEEK.0 * 60) / 5);
+
+#[derive(
+    Debug, Default, Eq, PartialEq, Copy, Clone, Ord, PartialOrd, From, Add, AddAssign, Sub, Sum,
+)]
 pub struct Minutes(usize);
 
 impl Minutes {
@@ -42,20 +47,6 @@ impl Minutes {
     }
 }
 
-impl AddAssign<Minutes> for Minutes {
-    fn add_assign(&mut self, rhs: Minutes) {
-        self.0 += rhs.0;
-    }
-}
-
-impl Sub<Minutes> for Minutes {
-    type Output = Self;
-
-    fn sub(self, rhs: Minutes) -> Self::Output {
-        Self(self.0 - rhs.0)
-    }
-}
-
 pub struct ClockDuration {
     hours: usize,
     minutes: usize,
@@ -67,26 +58,6 @@ impl Display for ClockDuration {
     }
 }
 
-impl Add<Minutes> for Minutes {
-    type Output = Minutes;
-
-    fn add(self, rhs: Minutes) -> Self::Output {
-        (self.0 + rhs.0).into()
-    }
-}
-
-impl Sum<Minutes> for Minutes {
-    fn sum<I: Iterator<Item = Minutes>>(iter: I) -> Self {
-        iter.fold(Minutes::default(), |a, b| a + b)
-    }
-}
-
-impl From<usize> for Minutes {
-    fn from(value: usize) -> Self {
-        Self(value)
-    }
-}
-
 #[derive(Debug, Default, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 pub struct Time {
     pub hour: u8,
@@ -95,12 +66,23 @@ pub struct Time {
 
 impl Time {
     #[must_use]
+    #[inline]
     pub fn new(hour: u8, minute: u8) -> Option<Self> {
         if !(0..24).contains(&hour) || !(0..60).contains(&minute) {
             None
         } else {
             Some(Self { hour, minute })
         }
+    }
+
+    #[must_use]
+    pub fn checked_add(self, rhs: Minutes) -> Option<Self> {
+        let my_duration = self.hour as usize * 60 + self.minute as usize;
+        let duration = (rhs + Minutes(my_duration)).into_duration();
+        Self::new(
+            duration.hours.try_into().ok()?,
+            duration.minutes.try_into().ok()?,
+        )
     }
 
     #[must_use]

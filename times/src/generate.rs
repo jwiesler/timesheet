@@ -2,7 +2,7 @@ use std::fmt::{from_fn, Formatter, Write};
 
 use thiserror::Error;
 
-use crate::Date;
+use crate::{Date, Time, WORK_TIME_PER_DAY};
 
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum Error {
@@ -33,14 +33,16 @@ impl FormatterEx for Formatter<'_> {
 }
 
 impl Template {
-    fn full_day(output: &mut String, date: Date, what: &str) -> std::fmt::Result {
+    fn full_working_day(output: &mut String, date: Date, what: &str) -> std::fmt::Result {
         write!(
             output,
             "{}",
             from_fn(|f| {
                 f.header(date)?;
                 writeln!(f, "09:00 {what}")?;
-                writeln!(f, "17:00")
+                let start = Time::new(9, 0).unwrap();
+                let end = start.checked_add(WORK_TIME_PER_DAY).unwrap();
+                writeln!(f, "{end}")
             })
         )
     }
@@ -59,19 +61,28 @@ impl Template {
                 if !args.is_empty() {
                     return Err(Error::Argc(0, args.len()));
                 }
-                Self::full_day(&mut output, date, "Urlaub").unwrap();
+                Self::full_working_day(&mut output, date, "Urlaub").unwrap();
             }
             Template::Ill => {
                 if !args.is_empty() {
                     return Err(Error::Argc(0, args.len()));
                 }
-                Self::full_day(&mut output, date, "Krank").unwrap();
+                Self::full_working_day(&mut output, date, "Krank").unwrap();
             }
             Template::Full => {
                 let [arg] = args else {
                     return Err(Error::Argc(1, args.len()));
                 };
-                Self::full_day(&mut output, date, arg).unwrap();
+                write!(
+                    output,
+                    "{}",
+                    from_fn(|f| {
+                        f.header(date)?;
+                        writeln!(f, "09:00 {arg}")?;
+                        writeln!(f, "17:00")
+                    })
+                )
+                .unwrap();
             }
             Template::Normal => {
                 if args.is_empty() || 2 < args.len() {
@@ -97,7 +108,7 @@ impl Template {
                 if !args.is_empty() {
                     return Err(Error::Argc(0, args.len()));
                 }
-                Self::full_day(&mut output, date, "Ustd").unwrap();
+                Self::full_working_day(&mut output, date, "Ustd").unwrap();
             }
         }
 
@@ -119,7 +130,7 @@ mod tests {
             (
                 Template::Holiday,
                 vec![],
-                "\n* Mo. 5.08.\n09:00 Urlaub\n17:00\n",
+                "\n* Mo. 5.08.\n09:00 Urlaub\n16:12\n",
             ),
             (
                 Template::Normal,
@@ -139,9 +150,9 @@ mod tests {
             (
                 Template::TimeOff,
                 vec![],
-                "\n* Mo. 5.08.\n09:00 Ustd\n17:00\n",
+                "\n* Mo. 5.08.\n09:00 Ustd\n16:12\n",
             ),
-            (Template::Ill, vec![], "\n* Mo. 5.08.\n09:00 Krank\n17:00\n"),
+            (Template::Ill, vec![], "\n* Mo. 5.08.\n09:00 Krank\n16:12\n"),
         ];
         for (template, args, result) in tests {
             assert_eq!(

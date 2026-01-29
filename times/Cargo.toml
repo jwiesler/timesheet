@@ -10,3 +10,4 @@ thiserror = "2.0.0"
 chrono = "0.4.38"
 anstyle = "1.0.7"
 ecow = "0.2.5"
+derive_more = { version = "2.1.0", features = ["from", "add", "add_assign", "sum"] }
