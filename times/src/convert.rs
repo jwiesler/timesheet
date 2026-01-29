@@ -3,7 +3,7 @@ use std::ops::Add;
 
 use thiserror::Error;
 
-use crate::{Date, Minutes, Positioned, String, Time, Topic};
+use crate::{Date, Minutes, Positioned, String, Time, Topic, WORK_TIME_PER_DAY};
 
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum Error {
@@ -75,7 +75,7 @@ impl Day {
     #[must_use]
     pub fn expected_time(&self) -> Minutes {
         if self.date.value.is_weekday() && !self.entries.is_empty() {
-            Minutes(Minutes::from_hours(36).into_inner() / 5)
+            WORK_TIME_PER_DAY
         } else {
             Minutes::default()
         }
