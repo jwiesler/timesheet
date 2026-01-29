@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter, Write};
+use std::fmt::{from_fn, Formatter, Write};
 
 use thiserror::Error;
 
@@ -15,8 +15,8 @@ pub enum Error {
 #[derive(Debug)]
 pub enum Template {
     Empty,
-    TechDay,
     Holiday,
+    TimeOff,
     Normal,
     Ill,
     Full,
@@ -34,11 +34,15 @@ impl FormatterEx for Formatter<'_> {
 
 impl Template {
     fn full_day(output: &mut String, date: Date, what: &str) -> std::fmt::Result {
-        write_with(output, |f| {
-            f.header(date)?;
-            writeln!(f, "09:00 {what}")?;
-            writeln!(f, "17:00")
-        })
+        write!(
+            output,
+            "{}",
+            from_fn(|f| {
+                f.header(date)?;
+                writeln!(f, "09:00 {what}")?;
+                writeln!(f, "17:00")
+            })
+        )
     }
 
     pub fn execute(&self, date: Date, args: &[&str]) -> Result<String, Error> {
@@ -49,13 +53,7 @@ impl Template {
                 if !args.is_empty() {
                     return Err(Error::Argc(0, args.len()));
                 }
-                write_with(&mut output, |f| f.header(date)).unwrap();
-            }
-            Template::TechDay => {
-                if !args.is_empty() {
-                    return Err(Error::Argc(0, args.len()));
-                }
-                Self::full_day(&mut output, date, "TNGFo Techday").unwrap();
+                write!(output, "{}", from_fn(|f| f.header(date))).unwrap();
             }
             Template::Holiday => {
                 if !args.is_empty() {
@@ -82,34 +80,29 @@ impl Template {
                 let arg_0 = &args[0];
                 let arg_1 = args.get(1).unwrap_or(arg_0);
 
-                write_with(&mut output, |f| {
-                    f.header(date)?;
-                    writeln!(f, "09:00 AA {arg_0}")?;
-                    writeln!(f, "12:30")?;
-                    writeln!(f, "13:00 AA {arg_1}")?;
-                    writeln!(f, "17:30")
-                })
+                write!(
+                    &mut output,
+                    "{}",
+                    from_fn(|f| {
+                        f.header(date)?;
+                        writeln!(f, "09:00 AA {arg_0}")?;
+                        writeln!(f, "12:30")?;
+                        writeln!(f, "13:00 AA {arg_1}")?;
+                        writeln!(f, "17:30")
+                    })
+                )
                 .unwrap();
+            }
+            Template::TimeOff => {
+                if !args.is_empty() {
+                    return Err(Error::Argc(0, args.len()));
+                }
+                Self::full_day(&mut output, date, "Ustd").unwrap();
             }
         }
 
         Ok(output)
     }
-}
-
-struct WithFormatter<F>(F);
-
-impl<F: for<'a> Fn(&mut Formatter<'a>) -> std::fmt::Result> Display for WithFormatter<F> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.0(f)
-    }
-}
-
-fn write_with<F: for<'a> Fn(&mut Formatter<'a>) -> std::fmt::Result>(
-    r: &mut String,
-    f: F,
-) -> std::fmt::Result {
-    write!(r, "{}", WithFormatter(f))
 }
 
 #[cfg(test)]
@@ -124,11 +117,6 @@ mod tests {
         let tests = [
             (Template::Empty, vec![], "\n* Mo. 5.08.\n"),
             (
-                Template::TechDay,
-                vec![],
-                "\n* Mo. 5.08.\n09:00 TNGFo Techday\n17:00\n",
-            ),
-            (
                 Template::Holiday,
                 vec![],
                 "\n* Mo. 5.08.\n09:00 Urlaub\n17:00\n",
@@ -142,6 +130,16 @@ mod tests {
                 Template::Normal,
                 vec!["A", "B"],
                 "\n* Mo. 5.08.\n09:00 AA A\n12:30\n13:00 AA B\n17:30\n",
+            ),
+            (
+                Template::Full,
+                vec!["What"],
+                "\n* Mo. 5.08.\n09:00 What\n17:00\n",
+            ),
+            (
+                Template::TimeOff,
+                vec![],
+                "\n* Mo. 5.08.\n09:00 Ustd\n17:00\n",
             ),
             (Template::Ill, vec![], "\n* Mo. 5.08.\n09:00 Krank\n17:00\n"),
         ];

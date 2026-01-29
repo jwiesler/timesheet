@@ -32,20 +32,22 @@ struct Args {
 #[derive(ValueEnum, Copy, Clone)]
 pub enum TemplateName {
     Empty,
-    TechDay,
     Holiday,
+    TimeOff,
     Normal,
     Ill,
+    Full,
 }
 
 impl From<TemplateName> for Template {
     fn from(value: TemplateName) -> Self {
         match value {
             TemplateName::Empty => Template::Empty,
-            TemplateName::TechDay => Template::TechDay,
             TemplateName::Holiday => Template::Holiday,
+            TemplateName::TimeOff => Template::TimeOff,
             TemplateName::Normal => Template::Normal,
             TemplateName::Ill => Template::Ill,
+            TemplateName::Full => Template::Full,
         }
     }
 }

@@ -113,11 +113,10 @@ impl App {
             "expand",
             "collapse",
             "add normal",
-            "add tech-day",
+            "add full",
             "add holiday",
             "add empty",
             "add ill",
-            "add tng-weekly",
         ]);
         Self {
             month,
@@ -277,7 +276,6 @@ impl App {
 
                 let template = match *template_name {
                     "empty" => Template::Empty,
-                    "tech-day" => Template::TechDay,
                     "holiday" => Template::Holiday,
                     "normal" => Template::Normal,
                     "ill" => Template::Ill,
