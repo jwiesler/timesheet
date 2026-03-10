@@ -215,11 +215,31 @@ impl App {
             },
             Focus::View => {
                 if let Event::Key(event) = event
-                    && event.code == KeyCode::Char(':')
                     && event.is_press()
                 {
-                    self.focus = Focus::Input;
-                    return None;
+                    match event.code {
+                        KeyCode::Char(':') => {
+                            self.focus = Focus::Input;
+                            return None;
+                        }
+                        KeyCode::Char('M') => {
+                            let current = self.current_month();
+                            return self
+                                .data
+                                .months
+                                .get(current.saturating_sub(1))
+                                .map(|(date, path)| Control::Month(*date, path.clone()));
+                        }
+                        KeyCode::Char('m') => {
+                            let current = self.current_month();
+                            return self
+                                .data
+                                .months
+                                .get(current.saturating_add(1))
+                                .map(|(date, path)| Control::Month(*date, path.clone()));
+                        }
+                        _ => {}
+                    }
                 }
                 return self.month.handle_event(event);
             }
@@ -253,17 +273,17 @@ impl App {
                     [month] => {
                         let month = month
                             .parse::<u32>()
-                            .map_err(|err| format!("Failed to parse month: {err}"))?;
+                            .map_err(|err| format!("Failed to parse month {month:?}: {err}"))?;
                         let year = self.today.year();
                         self.find_month(month, year)
                     }
                     [month, year] => {
                         let month = month
                             .parse::<u32>()
-                            .map_err(|err| format!("Failed to parse year: {err}"))?;
+                            .map_err(|err| format!("Failed to parse month {month:?}: {err}"))?;
                         let year = year
                             .parse::<i32>()
-                            .map_err(|err| format!("Failed to parse year: {err}"))?;
+                            .map_err(|err| format!("Failed to parse year {year:?}: {err}"))?;
                         self.find_month(month, year)
                     }
                     _ => return Err(format!("Unknown args to `month`: {args:?}").into()),

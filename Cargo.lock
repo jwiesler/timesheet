@@ -401,7 +401,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version",
- "syn 2.0.106",
+ "syn 2.0.117",
 ]
 
 [[package]]
