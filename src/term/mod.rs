@@ -1,8 +1,10 @@
+mod add;
 mod command;
 mod data;
 mod editor;
 mod model;
 mod month;
+mod select;
 mod style;
 
 use std::fmt::Display;
@@ -21,12 +23,13 @@ use times::generate::Template;
 use times::{Date, Minutes, NaiveDate};
 
 use crate::append_to_file;
+use crate::term::add::Add;
 use crate::term::command::Command;
 use crate::term::data::Data;
 use crate::term::editor::run_editor;
 use crate::term::model::Model;
 use crate::term::month::Month;
-use crate::term::style::{BORDER, HIGHLIGHT};
+use crate::term::style::{BORDER, BORDERS, HIGHLIGHT};
 
 pub fn run_term(path: &Path) -> std::io::Result<()> {
     let state = Data::from_dir(path.parent().unwrap())?;
@@ -62,6 +65,7 @@ enum Focus {
     Input,
     View,
     Alert,
+    Dialog,
 }
 
 #[must_use]
@@ -99,6 +103,7 @@ struct App {
     month: Month,
     today: Date,
     alert: Alert,
+    dialog: Add,
 }
 
 impl App {
@@ -126,6 +131,7 @@ impl App {
             command,
             today,
             alert: Alert::new(),
+            dialog: Add::new(),
         }
     }
 
@@ -187,6 +193,10 @@ impl App {
         if let Focus::Alert = self.focus {
             self.alert.draw(frame.area(), frame.buffer_mut());
         }
+
+        if let Focus::Dialog = self.focus {
+            self.dialog.render(frame.area(), frame);
+        }
     }
 
     fn handle_event(&mut self, event: Event) -> Option<Control> {
@@ -238,6 +248,10 @@ impl App {
                                 .get(current.saturating_add(1))
                                 .map(|(date, path)| Control::Month(*date, path.clone()));
                         }
+                        KeyCode::Char('a') => {
+                            self.focus = Focus::Dialog;
+                            self.dialog = Add::new();
+                        }
                         _ => {}
                     }
                 }
@@ -251,6 +265,20 @@ impl App {
                     self.focus = Focus::View;
                 }
             }
+            Focus::Dialog => match self.dialog.handle_event(&event)? {
+                add::Control::Add { template, args } => {
+                    self.focus = Focus::View;
+                    return self
+                        .execute_template(
+                            template,
+                            &args.iter().map(String::as_str).collect::<Vec<_>>(),
+                        )
+                        .map_or_else(|e| Some(Control::Alert(e.0)), |()| None);
+                }
+                add::Control::Hide => {
+                    self.focus = Focus::View;
+                }
+            },
         }
         None
     }
@@ -294,7 +322,6 @@ impl App {
                 let [template_name, args @ ..] = args else {
                     return Err("Missing template name argument to `add`".to_owned().into());
                 };
-
                 let template = match *template_name {
                     "empty" => Template::Empty,
                     "holiday" => Template::Holiday,
@@ -308,21 +335,7 @@ impl App {
                         );
                     }
                 };
-                let date = self
-                    .month
-                    .days()
-                    .last()
-                    .and_then(|d| d.date.value.following_day_in_month())
-                    .unwrap_or(self.month.date())
-                    .next_weekday_in_month()
-                    .expect("last day in the month");
-                let rendered = template
-                    .execute(date, args)
-                    .map_err(|e| format!("Failed to run template {template_name}: {e}"))?;
-                append_to_file(self.month.path(), &rendered)?;
-                let model = Model::load(self.month.date(), self.month.path().clone())?;
-                self.month.reload(model);
-                self.month.select_last();
+                self.execute_template(template, args)?;
                 Ok(None)
             }
             _ => self
@@ -331,6 +344,25 @@ impl App {
                 .map(|()| None)
                 .map_err(|_| format!("Unknown command: {command}").into()),
         }
+    }
+
+    fn execute_template(&mut self, template: Template, args: &[&str]) -> Result<(), Error> {
+        let date = self
+            .month
+            .days()
+            .last()
+            .and_then(|d| d.date.value.following_day_in_month())
+            .unwrap_or(self.month.date())
+            .next_weekday_in_month()
+            .expect("last day in the month");
+        let rendered = template
+            .execute(date, args)
+            .map_err(|e| format!("Failed to run template {template:?}: {e}"))?;
+        append_to_file(self.month.path(), &rendered)?;
+        let model = Model::load(self.month.date(), self.month.path().clone())?;
+        self.month.reload(model);
+        self.month.select_last();
+        Ok(())
     }
 }
 
@@ -366,6 +398,7 @@ impl Alert {
         let block = Block::bordered()
             .title(" Error ")
             .title_alignment(Alignment::Center)
+            .border_set(BORDERS)
             .border_style(BORDER);
         let area = Self::popup_area(area, 60, 20);
         Clear.render(area, buf);

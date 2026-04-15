@@ -14,7 +14,7 @@ use times::Date;
 use times::convert::Day;
 
 use crate::term::model::Model;
-use crate::term::style::{BORDER, DATE, HIGHLIGHT, PROJECT, TIME};
+use crate::term::style::{BORDER, BORDERS, DATE, HIGHLIGHT, PROJECT, TIME};
 use crate::term::{Control, UnknownCommand, View, output_time_delta};
 
 const DEFAULT_EXPANSION_STATE: bool = true;
@@ -157,6 +157,25 @@ impl Month {
     pub fn select_last(&mut self) {
         self.state.select_last();
     }
+
+    fn collapse_all(&mut self) {
+        let selected = self.state.selected().unwrap();
+        let (day, _) = self.day_index_from_index(selected).unwrap_or_default();
+        self.expanded.fill(false);
+        let new_day_start = self.start_of_day(day);
+        self.state.select(Some(new_day_start));
+        *self.state.offset_mut() = new_day_start;
+    }
+
+    fn expand_all(&mut self) {
+        let selected = self.state.selected().unwrap();
+        let (day, start) = self.day_index_from_index(selected).unwrap_or_default();
+        let day_offset = selected - start;
+        self.expanded.fill(true);
+        let new_day_start = self.start_of_day(day);
+        self.state.select(Some(new_day_start + day_offset));
+        *self.state.offset_mut() = new_day_start;
+    }
 }
 
 fn len_of_entry(day: &Day, expanded: bool) -> usize {
@@ -191,6 +210,7 @@ impl View for Month {
         let block = Block::bordered()
             .title(title)
             .border_style(BORDER)
+            .border_set(BORDERS)
             .padding(Padding::horizontal(1));
         let list_height = block.inner(area).height;
         let list = List::new(rows).block(block).highlight_style(HIGHLIGHT);
@@ -253,6 +273,12 @@ impl View for Month {
             KeyCode::Char('e') => {
                 return Some(Control::Edit);
             }
+            KeyCode::Char('E') => {
+                self.expand_all();
+            }
+            KeyCode::Char('C') => {
+                self.collapse_all();
+            }
             _ => {}
         }
         None
@@ -276,21 +302,10 @@ impl View for Month {
         }
         match command {
             "collapse" | "c" => {
-                let selected = self.state.selected().unwrap();
-                let (day, _) = self.day_index_from_index(selected).unwrap_or_default();
-                self.expanded.fill(false);
-                let new_day_start = self.start_of_day(day);
-                self.state.select(Some(new_day_start));
-                *self.state.offset_mut() = new_day_start;
+                self.collapse_all();
             }
             "expand" | "e" => {
-                let selected = self.state.selected().unwrap();
-                let (day, start) = self.day_index_from_index(selected).unwrap_or_default();
-                let day_offset = selected - start;
-                self.expanded.fill(true);
-                let new_day_start = self.start_of_day(day);
-                self.state.select(Some(new_day_start + day_offset));
-                *self.state.offset_mut() = new_day_start;
+                self.expand_all();
             }
             _ => return Err(UnknownCommand),
         }
