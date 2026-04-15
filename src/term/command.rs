@@ -9,6 +9,8 @@ use ratatui::widgets::{Block, Paragraph, Widget};
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
 
+use crate::term::style::BORDERS;
+
 pub struct Command {
     input: Input,
     history: VecDeque<String>,
@@ -46,7 +48,7 @@ impl Command {
         let input = Paragraph::new(Line::from(line))
             .scroll((0, u16::try_from(scroll).unwrap()))
             .style(Color::Yellow)
-            .block(Block::bordered());
+            .block(Block::bordered().border_set(BORDERS));
         input.render(area, frame.buffer_mut());
 
         // Ratatui hides the cursor unless it's explicitly set. Position the  cursor past the

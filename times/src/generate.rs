@@ -12,7 +12,7 @@ pub enum Error {
     Argc(usize, usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Template {
     Empty,
     Holiday,
