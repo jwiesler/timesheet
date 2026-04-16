@@ -1,12 +1,13 @@
 use ratatui::Frame;
 use ratatui::crossterm::event::{Event, KeyCode};
-use ratatui::layout::{Constraint, Rect};
+use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Widget};
 use times::generate::Template;
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
 
+use crate::term::components::popup_rect;
 use crate::term::components::select::ListSelect;
 use crate::term::style::{BORDER, BORDERS};
 
@@ -46,8 +47,9 @@ impl Add {
             state: State::Template(Box::new(ListSelect::new(
                 OPTIONS
                     .iter()
-                    .map(|(text, key, _)| (*text, KeyCode::Char(*key)))
+                    .map(|(text, key, _)| ((*text).into(), Some(KeyCode::Char(*key))))
                     .collect(),
+                0,
             ))),
         }
     }
@@ -108,19 +110,11 @@ impl Add {
     }
 
     pub fn render(&mut self, area: Rect, frame: &mut Frame<'_>) {
-        let min_width = 30;
-        let width = if area.width > min_width {
-            min_width + (area.width - min_width) / 4
-        } else {
-            area.width
-        };
         let height = match &self.state {
             State::Template(select) => select.height(),
             State::Parameters { .. } => 1,
         } + 2;
-
-        let area = area.centered(Constraint::Length(width), Constraint::Length(height));
-
+        let area = popup_rect(area, height);
         Clear.render(area, frame.buffer_mut());
         let title = match &self.state {
             State::Template(..) => Line::from(Span::from("Select template")),
@@ -141,7 +135,7 @@ impl Add {
             }
             State::Parameters { input, .. } => {
                 Line::from(input.value()).render(area, frame.buffer_mut());
-                let scroll = input.visual_scroll(width as usize);
+                let scroll = input.visual_scroll(area.width as usize);
 
                 // Ratatui hides the cursor unless it's explicitly set. Position the  cursor past the
                 // end of the input text and one line down from the border to the input line
