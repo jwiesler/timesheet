@@ -9,13 +9,13 @@ use ratatui::layout::Rect;
 use ratatui::prelude::Line;
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{Block, List, ListItem, ListState, Padding, StatefulWidget};
+use ratatui::widgets::{List, ListItem, ListState, StatefulWidget};
 use times::Date;
 use times::convert::Day;
 
+use crate::term::app::{Control, output_time_delta};
 use crate::term::model::Model;
-use crate::term::style::{BORDER, BORDERS, DATE, HIGHLIGHT, PROJECT, TIME};
-use crate::term::{Control, UnknownCommand, View, output_time_delta};
+use crate::term::style::{DATE, HIGHLIGHT, PROJECT, TIME};
 
 const DEFAULT_EXPANSION_STATE: bool = true;
 
@@ -95,6 +95,14 @@ impl Month {
 
     pub(crate) fn days(&self) -> &[Day] {
         &self.model.month().days
+    }
+
+    pub(crate) fn controls() -> &'static [(&'static str, KeyCode)] {
+        &[
+            ("Edit", KeyCode::Char('e')),
+            ("Collapse all", KeyCode::Char('C')),
+            ("Expand all", KeyCode::Char('E')),
+        ]
     }
 
     fn render_day(day: &Day, expanded: bool) -> Vec<ListItem<'_>> {
@@ -182,8 +190,8 @@ fn len_of_entry(day: &Day, expanded: bool) -> usize {
     (if expanded { day.entries.len() } else { 0 }) + 1
 }
 
-impl View for Month {
-    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+impl Month {
+    pub fn render(&mut self, area: Rect, buf: &mut Buffer) -> Line<'_> {
         let rows = self
             .model
             .month()
@@ -207,21 +215,17 @@ impl View for Month {
             Span::from(") ").style(Style::reset()),
         ]);
 
-        let block = Block::bordered()
-            .title(title)
-            .border_style(BORDER)
-            .border_set(BORDERS)
-            .padding(Padding::horizontal(1));
-        let list_height = block.inner(area).height;
-        let list = List::new(rows).block(block).highlight_style(HIGHLIGHT);
+        let list_height = area.height;
+        let list = List::new(rows).highlight_style(HIGHLIGHT);
         *self.state.offset_mut() = self
             .state
             .offset()
             .min(list.len().saturating_sub(usize::from(list_height)));
         list.render(area, buf, &mut self.state);
+        title
     }
 
-    fn handle_event(&mut self, e: Event) -> Option<Control> {
+    pub fn handle_event(&mut self, e: &Event) -> Option<Control> {
         let Event::Key(e) = e else {
             return None;
         };
@@ -284,7 +288,7 @@ impl View for Month {
         None
     }
 
-    fn command(&mut self, command: &str, _: &[&str]) -> Result<(), UnknownCommand> {
+    pub fn command(&mut self, command: &str, _: &[&str]) -> Result<(), UnknownCommand> {
         if let Ok(day) = command.parse::<u32>() {
             let days = &self.model.month().days;
             if days.is_empty() {
@@ -312,3 +316,6 @@ impl View for Month {
         Ok(())
     }
 }
+
+#[derive(Debug)]
+pub struct UnknownCommand;
