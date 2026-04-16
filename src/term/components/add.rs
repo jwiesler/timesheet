@@ -1,13 +1,13 @@
 use ratatui::Frame;
 use ratatui::crossterm::event::{Event, KeyCode};
-use ratatui::layout::{Alignment, Constraint, Rect};
+use ratatui::layout::{Constraint, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Widget};
 use times::generate::Template;
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
 
-use crate::term::select::ListSelect;
+use crate::term::components::select::ListSelect;
 use crate::term::style::{BORDER, BORDERS};
 
 pub enum Control {
@@ -92,16 +92,19 @@ impl Add {
                     && key.code == KeyCode::Enter
                     && !input.value().is_empty()
                 {
-                    let args = input.value().split_whitespace().map(String::from).collect();
                     return Some(Control::Add {
                         template: *template,
-                        args,
+                        args: vec![input.value_and_reset()],
                     });
                 }
                 input.handle_event(event);
                 None
             }
         }
+    }
+
+    pub fn controls() -> &'static [(&'static str, KeyCode)] {
+        &[("Confirm", KeyCode::Enter), ("Cancel", KeyCode::Esc)]
     }
 
     pub fn render(&mut self, area: Rect, frame: &mut Frame<'_>) {
@@ -126,8 +129,8 @@ impl Add {
             ))),
         };
         let block = Block::bordered()
-            .title(title)
-            .title_alignment(Alignment::Left)
+            .title_top(Span::default())
+            .title_top(title)
             .border_set(BORDERS)
             .border_style(BORDER);
         (&block).render(area, frame.buffer_mut());
