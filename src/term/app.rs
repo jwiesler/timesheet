@@ -17,7 +17,8 @@ use crate::term::components::add::Add;
 use crate::term::components::alert::Alert;
 use crate::term::components::command::Command;
 use crate::term::components::month::Month;
-use crate::term::components::{add, alert, command};
+use crate::term::components::months::Months;
+use crate::term::components::{add, alert, command, months};
 use crate::term::data::Data;
 use crate::term::editor::run_editor;
 use crate::term::model::Model;
@@ -28,6 +29,7 @@ enum Focus {
     View,
     Alert(Alert),
     Dialog(Add),
+    Months(Months),
 }
 
 #[must_use]
@@ -142,20 +144,20 @@ impl App {
             Focus::Input => &[("Confirm", KeyCode::Enter), ("Cancel", KeyCode::Esc)],
             Focus::View => Month::controls(),
             Focus::Alert(alert) => {
-                alert.draw(frame.area(), frame.buffer_mut());
+                alert.draw(view_area, frame.buffer_mut());
                 Alert::controls()
             }
             Focus::Dialog(dialog) => {
-                dialog.render(frame.area(), frame);
+                dialog.render(view_area, frame);
                 Add::controls()
+            }
+            Focus::Months(months) => {
+                months.render(view_area, frame.buffer_mut());
+                Months::controls()
             }
         };
         let base_controls: &[_] = if matches!(self.focus, Focus::View) {
-            &[
-                ("Add", KeyCode::Char('a')),
-                ("Next month", KeyCode::Char('m')),
-                ("Prev month", KeyCode::Char('M')),
-            ]
+            &[("Add", KeyCode::Char('a')), ("Month", KeyCode::Char('m'))]
         } else {
             &[]
         };
@@ -209,21 +211,12 @@ impl App {
                             self.focus = Focus::Input;
                             return None;
                         }
-                        KeyCode::Char('M') => {
-                            let current = self.current_month();
-                            return self
-                                .data
-                                .months
-                                .get(current.saturating_sub(1))
-                                .map(|(date, path)| Control::Month(*date, path.clone()));
-                        }
                         KeyCode::Char('m') => {
                             let current = self.current_month();
-                            return self
-                                .data
-                                .months
-                                .get(current.saturating_add(1))
-                                .map(|(date, path)| Control::Month(*date, path.clone()));
+                            self.focus = Focus::Months(Months::new(
+                                self.data.months.iter().rev().map(|(a, _)| *a),
+                                self.data.months.len() - 1 - current,
+                            ));
                         }
                         KeyCode::Char('a') => {
                             self.focus = Focus::Dialog(Add::new());
@@ -250,6 +243,20 @@ impl App {
                 }
                 add::Control::Hide => {
                     self.focus = Focus::View;
+                }
+            },
+            Focus::Months(months) => match months.handle_event(event)? {
+                months::Control::Hide => {
+                    self.focus = Focus::View;
+                }
+                months::Control::Month(month) => {
+                    let month = self.data.months.len() - 1 - month;
+                    self.focus = Focus::View;
+                    return self
+                        .data
+                        .months
+                        .get(month)
+                        .map(|(date, path)| Control::Month(*date, path.clone()));
                 }
             },
         }
