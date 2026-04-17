@@ -9,6 +9,7 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Layout};
 use ratatui::prelude::{Color, Line, Span, Style, Widget};
 use ratatui::widgets::{Block, Padding};
+use times::convert::AccumulatedTime;
 use times::generate::Template;
 use times::{Date, Minutes};
 
@@ -18,7 +19,8 @@ use crate::term::components::alert::Alert;
 use crate::term::components::command::Command;
 use crate::term::components::month::Month;
 use crate::term::components::months::Months;
-use crate::term::components::{add, alert, command, months};
+use crate::term::components::summary::Summary;
+use crate::term::components::{add, alert, command, months, summary};
 use crate::term::data::Data;
 use crate::term::editor::run_editor;
 use crate::term::model::Model;
@@ -28,14 +30,16 @@ enum Focus {
     Input,
     View,
     Alert(Alert),
-    Dialog(Add),
+    Add(Add),
     Months(Months),
+    Summary(Summary),
 }
 
 #[must_use]
 pub(crate) enum Control {
     Quit,
     Month(Date, Rc<PathBuf>),
+    Summary { month: Date },
     Edit,
     Alert(String),
 }
@@ -112,6 +116,25 @@ impl App {
                 Some(Control::Alert(message)) => {
                     self.focus = Focus::Alert(Alert::from(message));
                 }
+                Some(Control::Summary { month }) => {
+                    let (time, expected_min_work) = self
+                        .data
+                        .months
+                        .iter()
+                        .filter(|(date, _)| date.year() == month.year())
+                        .map(|(date, path)| Model::load(*date, path.clone()))
+                        .try_fold(
+                            (AccumulatedTime::default(), Minutes::default()),
+                            |acc, month| {
+                                let month = month?;
+                                Ok::<_, std::io::Error>((
+                                    acc.0 + month.month().times.clone(),
+                                    acc.1 + month.month().expected_min_work,
+                                ))
+                            },
+                        )?;
+                    self.focus = Focus::Summary(Summary::new(month, time, expected_min_work));
+                }
             }
         }
         Ok(())
@@ -147,9 +170,13 @@ impl App {
                 alert.draw(view_area, frame.buffer_mut());
                 Alert::controls()
             }
-            Focus::Dialog(dialog) => {
+            Focus::Add(dialog) => {
                 dialog.render(view_area, frame);
                 Add::controls()
+            }
+            Focus::Summary(summary) => {
+                summary.render(view_area, frame);
+                Summary::controls()
             }
             Focus::Months(months) => {
                 months.render(view_area, frame.buffer_mut());
@@ -157,7 +184,11 @@ impl App {
             }
         };
         let base_controls: &[_] = if matches!(self.focus, Focus::View) {
-            &[("Add", KeyCode::Char('a')), ("Month", KeyCode::Char('m'))]
+            &[
+                ("Add", KeyCode::Char('a')),
+                ("Month", KeyCode::Char('m')),
+                ("Summary", KeyCode::Char('s')),
+            ]
         } else {
             &[]
         };
@@ -219,7 +250,13 @@ impl App {
                             ));
                         }
                         KeyCode::Char('a') => {
-                            self.focus = Focus::Dialog(Add::new());
+                            self.focus = Focus::Add(Add::new());
+                        }
+                        KeyCode::Char('s') => {
+                            self.focus = Focus::View;
+                            return Some(Control::Summary {
+                                month: self.month.date(),
+                            });
                         }
                         _ => {}
                     }
@@ -231,7 +268,12 @@ impl App {
                     self.focus = Focus::View;
                 }
             },
-            Focus::Dialog(dialog) => match dialog.handle_event(event)? {
+            Focus::Summary(summary) => match summary.handle_event(event)? {
+                summary::Control::Hide => {
+                    self.focus = Focus::View;
+                }
+            },
+            Focus::Add(dialog) => match dialog.handle_event(event)? {
                 add::Control::Add { template, args } => {
                     self.focus = Focus::View;
                     return self

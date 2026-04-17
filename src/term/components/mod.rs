@@ -6,6 +6,7 @@ pub mod command;
 pub mod month;
 pub mod months;
 pub mod select;
+pub mod summary;
 
 fn popup_rect(area: Rect, height: u16) -> Rect {
     let min_width = 30;
