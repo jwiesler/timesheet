@@ -171,7 +171,9 @@ fn main() -> ExitCode {
     );
     let path = path.as_ref();
     if let Command::Terminal { .. } = command {
-        run_term(path).unwrap();
+        if let Err(e) = run_term(path) {
+            eprintln!("{e}");
+        }
         return ExitCode::SUCCESS;
     }
     match run(&command, path) {
