@@ -7,7 +7,7 @@ mod style;
 
 use std::path::Path;
 
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use app::App;
 use components::month::Month;
 use times::Date;
@@ -16,7 +16,8 @@ use crate::term::data::Data;
 use crate::term::model::Model;
 
 pub fn run_term(path: &Path) -> anyhow::Result<()> {
-    let state = Data::from_dir(path.parent().unwrap()).context("Failed to collect timesheets")?;
+    let dir = path.parent().unwrap();
+    let state = Data::from_dir(dir).context("Failed to collect timesheets")?;
     let today = Date::today();
     let month = {
         let (date, path) = state
@@ -24,7 +25,7 @@ pub fn run_term(path: &Path) -> anyhow::Result<()> {
             .iter()
             .find(|(_, p)| p.as_path() == path)
             .or(state.months.last())
-            .unwrap()
+            .with_context(|| anyhow!("No timesheets were found under {dir:?}"))?
             .clone();
         let month = Model::load(date, path.clone())?;
         Month::new(month)
