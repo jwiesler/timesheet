@@ -1488,6 +1488,7 @@ dependencies = [
 name = "timesheet"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "clap",
  "editor-command",

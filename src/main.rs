@@ -172,7 +172,7 @@ fn main() -> ExitCode {
     let path = path.as_ref();
     if let Command::Terminal { .. } = command {
         if let Err(e) = run_term(path) {
-            eprintln!("{e}");
+            eprintln!("{e:?}");
         }
         return ExitCode::SUCCESS;
     }

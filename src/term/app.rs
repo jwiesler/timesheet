@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use anyhow::Context;
 use chrono::NaiveDate;
 use ratatui::Frame;
 use ratatui::crossterm::event;
@@ -98,10 +99,14 @@ impl App {
             .0
     }
 
-    pub fn run(&mut self, terminal: &mut ratatui::DefaultTerminal) -> std::io::Result<()> {
+    pub fn run(&mut self, terminal: &mut ratatui::DefaultTerminal) -> anyhow::Result<()> {
         loop {
-            terminal.draw(|frame| self.draw(frame))?;
-            match self.handle_event(&event::read()?) {
+            terminal
+                .draw(|frame| self.draw(frame))
+                .with_context(|| "Failed to draw frame")?;
+            match self
+                .handle_event(&event::read().with_context(|| "Failed to read terminal event")?)
+            {
                 None => {}
                 Some(Control::Quit) => break,
                 Some(Control::Month(date, path)) => {
@@ -122,12 +127,11 @@ impl App {
                         .months
                         .iter()
                         .filter(|(date, _)| date.year() == month.year())
-                        .map(|(date, path)| Model::load(*date, path.clone()))
                         .try_fold(
                             (AccumulatedTime::default(), Minutes::default()),
-                            |acc, month| {
-                                let month = month?;
-                                Ok::<_, std::io::Error>((
+                            |acc, (date, path)| {
+                                let month = Model::load(*date, path.clone())?;
+                                Ok::<_, anyhow::Error>((
                                     acc.0 + month.month().times.clone(),
                                     acc.1 + month.month().expected_min_work,
                                 ))
@@ -380,7 +384,7 @@ impl App {
         let rendered = template
             .execute(date, args)
             .map_err(|e| format!("Failed to run template {template:?}: {e}"))?;
-        append_to_file(self.month.path(), &rendered)?;
+        append_to_file(self.month.path(), &rendered).map_err(anyhow::Error::from)?;
         let model = Model::load(self.month.date(), self.month.path().clone())?;
         self.month.reload(model);
         self.month.select_last();
@@ -408,9 +412,9 @@ impl From<String> for Error {
     }
 }
 
-impl From<std::io::Error> for Error {
-    fn from(s: std::io::Error) -> Self {
-        Error(s.to_string())
+impl From<anyhow::Error> for Error {
+    fn from(s: anyhow::Error) -> Self {
+        Error(format!("{s:?}"))
     }
 }
 
