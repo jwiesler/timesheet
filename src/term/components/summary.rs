@@ -83,7 +83,7 @@ impl Summary {
         let areas = area.layout_vec(&Layout::vertical(
             stats.clone().map(|_| Constraint::Length(1)),
         ));
-        for ((heading, stat), area) in stats.into_iter().zip(areas.into_iter()) {
+        for ((heading, stat), area) in stats.into_iter().zip(areas) {
             let line = Line::from(vec![Span::from(heading), stat]);
             line.render(area, frame.buffer_mut());
         }
