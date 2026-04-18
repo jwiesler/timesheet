@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use anyhow::{Context, anyhow};
 use times::Date;
 use times::parse::from_stem;
 
@@ -10,9 +11,12 @@ pub struct Data {
 }
 
 impl Data {
-    pub fn from_dir(path: &Path) -> std::io::Result<Self> {
+    pub fn from_dir(path: &Path) -> anyhow::Result<Self> {
         let mut months = Vec::new();
-        for file in path.read_dir()? {
+        for file in path
+            .read_dir()
+            .with_context(|| anyhow!("Failed to read dir {path:?}"))?
+        {
             let file = file?;
             if !file.file_type()?.is_file() {
                 continue;
@@ -23,11 +27,11 @@ impl Data {
             }
 
             let stem = path.file_stem().unwrap().to_str().unwrap();
-            let date = from_stem(stem).unwrap_or_else(|| {
-                panic!(
-                    "failed to parse month from input file stem {stem:?}, expected format YYYY-MM"
+            let date = from_stem(stem).with_context(|| {
+                anyhow!(
+                    "failed to parse month from input file {path:?}, expected format YYYY-MM.tsh"
                 )
-            });
+            })?;
 
             months.push((date, path.into()));
         }

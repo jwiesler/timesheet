@@ -3,6 +3,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use anyhow::{Context, anyhow};
 use times::Date;
 use times::convert::{Error, Month};
 use times::parse::parse;
@@ -14,13 +15,12 @@ pub struct Model {
 }
 
 impl Model {
-    pub fn load(date: Date, path: Rc<PathBuf>) -> std::io::Result<Model> {
+    pub fn load(date: Date, path: Rc<PathBuf>) -> anyhow::Result<Model> {
         let file = File::open(path.as_path())?;
         let days = parse(&mut BufReader::new(file), date)
-            .map_err(|e| std::io::Error::other(format!("Error trying to parse {path:?}: {e}")))?;
-        let model = Model::new(date, days, path.clone()).map_err(move |e| {
-            std::io::Error::other(format!("Timesheets under {path:?} are invalid: {e}"))
-        })?;
+            .with_context(|| anyhow!("Error trying to parse {path:?}"))?;
+        let model = Model::new(date, days, path.clone())
+            .with_context(move || anyhow!("Timesheets under {path:?} are invalid"))?;
         Ok(model)
     }
 
